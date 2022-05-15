@@ -1,8 +1,8 @@
-[submodule "Libraries/metal-cpp"]
-	path = Libraries/metal-cpp
-	url = git@github.com:danskidb/metal-cpp-cmake.git
-	branch = main
 [submodule "Libraries/loguru"]
 	path = Libraries/loguru
 	url = https://github.com/emilk/loguru.git
 	branch = master
+[submodule "Libraries/metal-cpp"]
+	path = Libraries/metal-cpp
+	url = git@github.com:danskidb/metal-cpp-cmake.git
+	branch = main

@@ -1,0 +1,17 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Mac: Sandbox (arm64)",
+			"type": "lldb",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/Sandbox/Sandbox",
+			"args": ["arch -arm64"],
+			"cwd": "${workspaceFolder}/build/Sandbox",
+			"preLaunchTask": "build_sandboxapp"
+		  },
+	]
+}

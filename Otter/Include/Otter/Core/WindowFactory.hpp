@@ -1,7 +1,7 @@
 #pragma once
 
 namespace Otter {
-	class Window 
+	class WindowFactory
 	{
 
 	};

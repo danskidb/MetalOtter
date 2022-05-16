@@ -4,5 +4,5 @@
 	branch = master
 [submodule "Libraries/metal-cpp"]
 	path = Libraries/metal-cpp
-	url = git@github.com:danskidb/metal-cpp-cmake.git
+	url = https://github.com/LeeTeng2001/metal-cpp-cmake.git
 	branch = main

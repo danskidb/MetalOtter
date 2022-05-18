@@ -43,5 +43,6 @@ namespace Otter
 		ImGuiContext* imGuiContext;
 		ImGui_ImplVulkanH_Window mainWindowData;
 		const int minImageCount = 2;
+		bool swapChainRebuild = false;
 	};
 }

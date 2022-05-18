@@ -9,8 +9,8 @@ namespace Sandbox {
 
 	void SandboxApp::OnStart()
 	{
-		CreateWindow({720, 1280}, "Main Window");
-		CreateWindow({1280, 720}, "Second Window");
+		CreateWindow({480, 640}, "Main Window");
+		//CreateWindow({640, 480}, "Second Window");
 	}
 
 	void SandboxApp::OnTick(float deltaTime)

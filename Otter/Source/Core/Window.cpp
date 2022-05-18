@@ -16,7 +16,7 @@ namespace Otter
 
 	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
 	{
-		vulkanInstanceRef = vulkanInstance;
+		vulkanInstanceRef= vulkanInstance;
 		this->title = title;
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -73,6 +73,7 @@ namespace Otter
 		ImGui::DestroyContext();
 
     	ImGui_ImplVulkanH_DestroyWindow(vulkanInstanceRef, vulkanDevice, &mainWindowData, nullptr);
+		vkDestroyDescriptorPool(vulkanDevice, vulkanDescriptorPool, nullptr);
 		vkDestroyDevice(vulkanDevice, nullptr);
 
 		glfwDestroyWindow(handle);
@@ -88,7 +89,7 @@ namespace Otter
 
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        // ImGui::NewFrame();
 
 		// ImGui::ShowDemoWindow(&show_demo_window);
 

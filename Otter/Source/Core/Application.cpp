@@ -6,6 +6,22 @@
 
 namespace Otter {
 
+	static void glfw_error_callback(int error, const char* description)
+	{
+		LOG_F(ERROR, "Glfw Error %d: %s", error, description);
+	}
+
+	static void check_vk_result(VkResult err)
+	{
+		if (err == 0)
+			return;
+
+		LOG_F(ERROR, "[vulkan] Error: VkResult = %d\n", err);
+
+		if (err < 0)
+			abort();
+	}
+
 	Application::Application()
 	{
 		appName = "OtterApplication";
@@ -22,9 +38,16 @@ namespace Otter {
 		loguru::init(argc, argv);
 		loguru::add_file("otter.log", loguru::FileMode::Truncate, loguru::Verbosity_MAX);
 
-		if(glfwInit() != GLFW_TRUE)
+		glfwSetErrorCallback(glfw_error_callback);
+		if(!glfwInit())
 		{
 			LOG_F(ERROR, "Failed to initialize GLFW");
+			return;
+		}
+
+		if(!glfwVulkanSupported())
+		{
+			LOG_F(ERROR, "GLFW: Vulkan is not supported");
 			return;
 		}
 
@@ -128,6 +151,7 @@ namespace Otter {
 		createInfo.enabledLayerCount = 0;
 
 		VkResult result = vkCreateInstance(&createInfo, nullptr, &vulkanInstance);
+		check_vk_result(result);
 
 		return result == VK_SUCCESS;
 	}

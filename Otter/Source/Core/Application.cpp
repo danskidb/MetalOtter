@@ -1,6 +1,8 @@
 #include "Otter/Core/Application.hpp"
 #include <chrono>
 
+#include <GLFW/glfw3.h>
+
 namespace Otter {
 
 	Application::Application()
@@ -9,84 +11,63 @@ namespace Otter {
 
 	Application::~Application()
 	{
+		windows.clear();
 	}
 
 	void Application::Run(int argc, char* argv[], char* envp[])
 	{
-#ifdef __APPLE__
-        NS::AutoreleasePool* pAutoreleasePool = NS::AutoreleasePool::alloc()->init();
-
-        MyAppDelegate del;
-
-        NS::Application* pSharedApplication = NS::Application::sharedApplication();
-        pSharedApplication->setDelegate( &del );
-        pSharedApplication->run();
-
-        pAutoreleasePool->release();
-#endif
-
+		glfwInit();		
 		OnStart();
 
 		float dt = 0.0f;
-		while (true) {
+		while (shouldTick)
+		{
 			auto startTime = std::chrono::high_resolution_clock::now();
 
 			OnTick(dt);
+			for(auto window : windows)
+			{
+				window->OnTick();
+				if (window->ShouldBeDestroyed())
+					DestroyWindow(window);
+			}
+			
+			glfwPollEvents();
+			if (windows.empty())	// this causes the app to quit when the last window is closed.
+				shouldTick = false;
 
 			auto stopTime = std::chrono::high_resolution_clock::now();
 			dt = std::chrono::duration<float, std::chrono::seconds::period>(stopTime - startTime).count();
 		}
 
 		OnStop();
+		glfwTerminate();
 	}
 
-#ifdef __APPLE__
-    MyAppDelegate::~MyAppDelegate()
-    {
-    }
+	bool Application::CreateWindow(glm::vec2 size, std::string title)
+	{
+		std::shared_ptr<Otter::Window> window = std::make_shared<Otter::Window>(size, title);
+		if (!window->IsValid())
+			return false;
 
-    NS::Menu* MyAppDelegate::createMenuBar()
-    {
-        NS::Menu* pMainMenu = NS::Menu::alloc()->init();
-        NS::MenuItem* pAppMenuItem = NS::MenuItem::alloc()->init();
-        NS::Menu* pAppMenu = NS::Menu::alloc()->init( NS::String::string( "Appname", NS::StringEncoding::UTF8StringEncoding ) );
+		windows.push_back(window);
+		return true;
+	}
 
-        NS::String* appName = NS::RunningApplication::currentApplication()->localizedName();
-        NS::String* quitItemName = NS::String::string( "Quit ", NS::StringEncoding::UTF8StringEncoding )->stringByAppendingString( appName );
-        SEL quitCb = NS::MenuItem::registerActionCallback( "appQuit", [](void*,SEL,const NS::Object* pSender){
-            auto pApp = NS::Application::sharedApplication();
-            pApp->terminate( pSender );
-        } );
+	bool Application::DestroyWindow(std::shared_ptr<Otter::Window> window)
+	{
+		auto it = windows.begin();
+		bool found = false;
 
-        NS::MenuItem* pAppQuitItem = pAppMenu->addItem( quitItemName, quitCb, NS::String::string( "q", NS::StringEncoding::UTF8StringEncoding ) );
-        pAppQuitItem->setKeyEquivalentModifierMask( NS::EventModifierFlagCommand );
-        pAppMenuItem->setSubmenu( pAppMenu );
+		while(it != windows.end())
+			if(*it == window)
+			{
+				it = windows.erase(it);
+				found = true;
+			}
+			else
+				++it;
 
-        pMainMenu->addItem( pAppMenuItem );
-
-        pAppMenuItem->release();
-        pAppMenu->release();
-
-        return pMainMenu->autorelease();
-    }
-
-    void MyAppDelegate::applicationWillFinishLaunching( NS::Notification* pNotification )
-    {
-        NS::Menu* pMenu = createMenuBar();
-        NS::Application* pApp = reinterpret_cast< NS::Application* >( pNotification->object() );
-        pApp->setMainMenu( pMenu );
-        pApp->setActivationPolicy( NS::ActivationPolicy::ActivationPolicyRegular );
-    }
-
-    void MyAppDelegate::applicationDidFinishLaunching( NS::Notification* pNotification )
-    {
-        NS::Application* pApp = reinterpret_cast< NS::Application* >( pNotification->object() );
-        pApp->activateIgnoringOtherApps( true );
-    }
-
-    bool MyAppDelegate::applicationShouldTerminateAfterLastWindowClosed( NS::Application* pSender )
-    {
-        return true;
-    }
-#endif
+		return found;
+	}
 }

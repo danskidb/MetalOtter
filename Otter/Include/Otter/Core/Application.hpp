@@ -1,11 +1,12 @@
 #pragma once
 
-#ifdef __APPLE__
-#include "AppKit/AppKit.hpp"
-#endif
+#include <vector>
+#include <string>
+#include "Otter/Core/Window.hpp"
+#include "glm/vec2.hpp"
 
-namespace Otter {
-
+namespace Otter 
+{
 	class Application
 	{
 	public:
@@ -17,22 +18,17 @@ namespace Otter {
 		virtual void OnStart() = 0;
 		virtual void OnTick(float deltaTime) = 0;
 		virtual void OnStop() = 0;
+
+		// Creates a new window, returns success.
+		bool CreateWindow(glm::vec2 size, std::string title);
+		bool DestroyWindow(std::shared_ptr<Otter::Window> window);
+
+	private:
+		std::vector<std::shared_ptr<Otter::Window>> windows;
+		bool windowWasDestroyed = true;
+		bool shouldTick = true;
 	};
 
 	// To be defined in CLIENT
 	Application* CreateApplication();
-
-#ifdef __APPLE__
-	class MyAppDelegate : public NS::ApplicationDelegate
-	{
-		public:
-			~MyAppDelegate();
-
-			NS::Menu* createMenuBar();
-
-			virtual void applicationWillFinishLaunching( NS::Notification* pNotification ) override;
-			virtual void applicationDidFinishLaunching( NS::Notification* pNotification ) override;
-			virtual bool applicationShouldTerminateAfterLastWindowClosed( NS::Application* pSender ) override;
-	};
-#endif
 }

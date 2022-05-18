@@ -6,9 +6,10 @@
                 "${workspaceFolder}/**"
             ],
             "macFrameworkPath": [],
-            "compilerPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++",
+            "compilerPath": "/usr/bin/clang",
             "cStandard": "gnu17",
             "configurationProvider": "ms-vscode.cmake-tools",
+            "intelliSenseMode": "macos-clang-arm64",
             "cppStandard": "c++17"
         }
     ],

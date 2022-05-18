@@ -10,3 +10,7 @@
 	path = Libraries/glfw
 	url = https://github.com/glfw/glfw.git
 	branch = master
+[submodule "Libraries/imgui"]
+	path = Libraries/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = master

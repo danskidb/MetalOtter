@@ -6,6 +6,8 @@ namespace Sandbox {
 	class SandboxApp : public Otter::Application
 	{
 	public:
+		SandboxApp();
+
 		void OnStart() override;
 		void OnTick(float deltaTime) override;
 		void OnStop() override;

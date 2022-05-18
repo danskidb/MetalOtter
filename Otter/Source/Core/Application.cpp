@@ -1,7 +1,8 @@
 #include "Otter/Core/Application.hpp"
 #include <chrono>
-
+#include <iostream>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 
 namespace Otter {
 
@@ -18,6 +19,17 @@ namespace Otter {
 	{
 		glfwInit();		
 		OnStart();
+
+
+		uint32_t extensionCount = 0;
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+		std::vector<VkExtensionProperties> extensions(extensionCount);
+		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
+
+		std::cout << extensionCount << " vulkan extensions supported\n";
+		for (const auto& extension : extensions)
+			std::cout << '\t' << extension.extensionName << '\n';
+
 
 		float dt = 0.0f;
 		while (shouldTick)

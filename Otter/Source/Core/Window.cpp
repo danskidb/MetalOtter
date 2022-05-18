@@ -3,6 +3,17 @@
 
 namespace Otter 
 {
+	static void check_vk_result(VkResult err)
+	{
+		if (err == 0)
+			return;
+
+		LOG_F(ERROR, "[vulkan] Error: VkResult = %d\n", err);
+
+		if (err < 0)
+			abort();
+	}
+
 	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
 	{
 		vulkanInstanceRef = vulkanInstance;
@@ -10,11 +21,43 @@ namespace Otter
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
-		LOG_F(INFO, "Created new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
+		LOG_F(INFO, "Initializing new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
 		
 		CreateVulkanDevice();
 
-    	//VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, surface);
+    	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
+		check_vk_result(err);
+
+		// Create framebuffers
+		int w, h;
+		glfwGetFramebufferSize(handle, &w, &h);
+		ImGui_ImplVulkanH_Window* wd = &mainWindowData;
+		SetupVulkanWindow(wd, surface, w, h);
+
+		// Setup IMGUI context
+		imGuiContext = ImGui::CreateContext();
+		ImGui::SetCurrentContext(imGuiContext);
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		ImGui::StyleColorsDark();
+
+		ImGui_ImplGlfw_InitForVulkan(handle, true);
+		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.Instance = vulkanInstance;
+		init_info.PhysicalDevice = vulkanPhysicalDevice;
+		init_info.Device = vulkanDevice;
+		init_info.QueueFamily = vulkanQueueFamily;
+		init_info.Queue = vulkanQueue;
+		init_info.PipelineCache = vulkanPipelineCache;
+		init_info.DescriptorPool = vulkanDescriptorPool;
+		init_info.Subpass = 0;
+		init_info.MinImageCount = minImageCount;
+		init_info.ImageCount = wd->ImageCount;
+		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+		init_info.Allocator = nullptr;
+		init_info.CheckVkResultFn = check_vk_result;
+		ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
+
+		initialized = true;
 	}
 
 	Window::~Window()
@@ -22,7 +65,42 @@ namespace Otter
 		if (!IsValid())
 			return;
 		
+		VkResult err = vkDeviceWaitIdle(vulkanDevice);
+		check_vk_result(err);
+
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
+
+    	ImGui_ImplVulkanH_DestroyWindow(vulkanInstanceRef, vulkanDevice, &mainWindowData, nullptr);
+		vkDestroyDevice(vulkanDevice, nullptr);
+
 		glfwDestroyWindow(handle);
+	}
+
+    bool show_demo_window = true;
+	void Window::OnTick()
+	{
+		if (!IsValid() || !initialized)
+			return;
+
+		ImGui::SetCurrentContext(imGuiContext);
+
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+		// ImGui::ShowDemoWindow(&show_demo_window);
+
+		// ImGui::Render();
+        // ImDrawData* draw_data = ImGui::GetDrawData();
+        // const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
+        // if (!is_minimized)
+        // {
+		// 	ImGui_ImplVulkanH_Window* wd = &mainWindowData;
+        //     FrameRender(wd, draw_data);
+        //     FramePresent(wd);
+        // }
 	}
 
 	bool Window::ShouldBeDestroyed()
@@ -41,10 +119,12 @@ namespace Otter
 		{
 			uint32_t gpu_count;
 			err = vkEnumeratePhysicalDevices(vulkanInstanceRef, &gpu_count, NULL);
+			check_vk_result(err);
 			assert(gpu_count > 0);
 
 			VkPhysicalDevice* gpus = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * gpu_count);
 			err = vkEnumeratePhysicalDevices(vulkanInstanceRef, &gpu_count, gpus);
+			check_vk_result(err);
 			assert(err == VK_SUCCESS);
 
 			// If a number >1 of GPUs got reported, find discrete GPU if present, or use first one available. This covers
@@ -104,7 +184,7 @@ namespace Otter
 			create_info.enabledExtensionCount = device_extension_count;
 			create_info.ppEnabledExtensionNames = device_extensions;
 			err = vkCreateDevice(vulkanPhysicalDevice, &create_info, nullptr, &vulkanDevice);
-			//check_vk_result(err);
+			check_vk_result(err);
 			vkGetDeviceQueue(vulkanDevice, vulkanQueueFamily, 0, &vulkanQueue);
 		}
 
@@ -131,9 +211,51 @@ namespace Otter
 			pool_info.poolSizeCount = (uint32_t)sizeof(pool_sizes);
 			pool_info.pPoolSizes = pool_sizes;
 			err = vkCreateDescriptorPool(vulkanDevice, &pool_info, nullptr, &vulkanDescriptorPool);
-			//check_vk_result(err);
+			check_vk_result(err);
 		}
 
 		return true;
+	}
+
+	void Window::SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int width, int height)
+	{
+		wd->Surface = surface;
+
+		// Check for WSI support
+		VkBool32 res;
+		vkGetPhysicalDeviceSurfaceSupportKHR(vulkanPhysicalDevice, vulkanQueueFamily, wd->Surface, &res);
+		if (res != VK_TRUE)
+		{
+			LOG_F(ERROR, "Error no WSI support on physical device 0");
+			exit(-1);
+		}
+
+		// Select Surface Format
+		const VkFormat requestSurfaceImageFormat[] = { VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8_UNORM, VK_FORMAT_R8G8B8_UNORM };
+		const VkColorSpaceKHR requestSurfaceColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
+		wd->SurfaceFormat = ImGui_ImplVulkanH_SelectSurfaceFormat(vulkanPhysicalDevice, wd->Surface, requestSurfaceImageFormat, (size_t)IM_ARRAYSIZE(requestSurfaceImageFormat), requestSurfaceColorSpace);
+
+		// Select Present Mode
+	#ifdef IMGUI_UNLIMITED_FRAME_RATE
+		VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
+	#else
+		VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
+	#endif
+		wd->PresentMode = ImGui_ImplVulkanH_SelectPresentMode(vulkanPhysicalDevice, wd->Surface, &present_modes[0], IM_ARRAYSIZE(present_modes));
+		LOG_F(INFO, "[vulkan] Selected PresentMode = %d", wd->PresentMode);
+
+		// Create SwapChain, RenderPass, Framebuffer, etc.
+		assert(minImageCount >= 2);
+		ImGui_ImplVulkanH_CreateOrResizeWindow(vulkanInstanceRef, vulkanPhysicalDevice, vulkanDevice, wd, vulkanQueueFamily, nullptr, width, height, minImageCount);
+	}
+
+	void Window::FrameRender(ImGui_ImplVulkanH_Window* wd, ImDrawData* drawData)
+	{
+
+	}
+
+	void Window::FramePresent(ImGui_ImplVulkanH_Window* wd)
+	{
+
 	}
 }

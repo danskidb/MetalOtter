@@ -53,9 +53,13 @@ namespace Otter {
 			OnTick(dt);
 			for(auto window : windows)
 			{
-				window->OnTick();
 				if (window->ShouldBeDestroyed())
+				{
 					DestroyWindow(window);
+					continue;
+				}
+
+				window->OnTick();
 			}
 			
 			glfwPollEvents();

@@ -3,6 +3,9 @@
 #include "glm/vec2.hpp"
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.h"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #include <string>
 
 namespace Otter
@@ -15,11 +18,15 @@ namespace Otter
 
 		inline bool IsValid() { return handle != nullptr; }
 
-		virtual void OnTick() {};
+		virtual void OnTick();
 		bool ShouldBeDestroyed();
 		bool CreateVulkanDevice();
+		void SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int width, int height);
+		void FrameRender(ImGui_ImplVulkanH_Window* wd, ImDrawData* drawData);
+		void FramePresent(ImGui_ImplVulkanH_Window* wd);
 
 	private:
+		bool initialized = false;
 		VkInstance vulkanInstanceRef;
 
 		std::string title;
@@ -30,6 +37,11 @@ namespace Otter
 		VkDevice vulkanDevice;
 		uint32_t vulkanQueueFamily = (uint32_t)-1;
 		VkQueue vulkanQueue;
+		VkPipelineCache vulkanPipelineCache;
 		VkDescriptorPool vulkanDescriptorPool;
+
+		ImGuiContext* imGuiContext;
+		ImGui_ImplVulkanH_Window mainWindowData;
+		const int minImageCount = 2;
 	};
 }

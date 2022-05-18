@@ -3,6 +3,7 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <loguru.hpp>
 
 namespace Otter {
 
@@ -17,19 +18,19 @@ namespace Otter {
 
 	void Application::Run(int argc, char* argv[], char* envp[])
 	{
-		glfwInit();		
+		glfwInit();	
+		loguru::init(argc, argv);
+		loguru::add_file("otter.log", loguru::FileMode::Truncate, loguru::Verbosity_MAX);
 		OnStart();
-
 
 		uint32_t extensionCount = 0;
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 		std::vector<VkExtensionProperties> extensions(extensionCount);
 		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-		std::cout << extensionCount << " vulkan extensions supported\n";
+		LOG_F(INFO, "%u vulkan extensions supported", extensionCount);
 		for (const auto& extension : extensions)
-			std::cout << '\t' << extension.extensionName << '\n';
-
+			LOG_F(INFO, "\t %s", extension.extensionName);
 
 		float dt = 0.0f;
 		while (shouldTick)

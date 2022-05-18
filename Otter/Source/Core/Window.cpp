@@ -1,4 +1,5 @@
 #include "Otter/Core/Window.hpp"
+#include "loguru.hpp"
 
 namespace Otter 
 {
@@ -6,6 +7,7 @@ namespace Otter
 	{
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
+		LOG_F(INFO, "Created new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
 	}
 
 	Window::~Window()

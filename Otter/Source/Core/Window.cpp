@@ -116,6 +116,7 @@ namespace Otter
 		}
 
 		vkDestroyDescriptorPool(vulkanDevice, vulkanDescriptorPool, nullptr);
+		vkDestroySurfaceKHR(vulkanInstanceRef, surface, nullptr);
 		vkDestroyDevice(vulkanDevice, nullptr);
 
 		glfwDestroyWindow(handle);

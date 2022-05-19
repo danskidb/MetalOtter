@@ -14,10 +14,11 @@ namespace Otter
 			abort();
 	}
 
-	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
+	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance, bool enableImGui)
 	{
 		vulkanInstanceRef= vulkanInstance;
 		this->title = title;
+		imGuiEnabled = enableImGui;
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
@@ -28,66 +29,71 @@ namespace Otter
     	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
 		check_vk_result(err);
 
-		// Create framebuffers
-		int w, h;
-		glfwGetFramebufferSize(handle, &w, &h);
-		ImGui_ImplVulkanH_Window* wd = &mainWindowData;
-		SetupVulkanWindow(wd, surface, w, h);
-
-		// Setup IMGUI context
-		imGuiContext = ImGui::CreateContext();
-		ImGui::SetCurrentContext(imGuiContext);
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
-	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-		ImGui::StyleColorsDark();
-
-		ImGui_ImplGlfw_InitForVulkan(handle, true);
-		ImGui_ImplVulkan_InitInfo init_info = {};
-		init_info.Instance = vulkanInstance;
-		init_info.PhysicalDevice = vulkanPhysicalDevice;
-		init_info.Device = vulkanDevice;
-		init_info.QueueFamily = vulkanQueueFamily;
-		init_info.Queue = vulkanQueue;
-		init_info.PipelineCache = vulkanPipelineCache;
-		init_info.DescriptorPool = vulkanDescriptorPool;
-		init_info.Subpass = 0;
-		init_info.MinImageCount = minImageCount;
-		init_info.ImageCount = wd->ImageCount;
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-		init_info.Allocator = nullptr;
-		init_info.CheckVkResultFn = check_vk_result;
-		ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
-
-		// Upload Fonts
+		if (enableImGui)
 		{
-			// Use any command queue
-			VkCommandPool command_pool = wd->Frames[wd->FrameIndex].CommandPool;
-			VkCommandBuffer command_buffer = wd->Frames[wd->FrameIndex].CommandBuffer;
+			LOG_F(INFO, "Setting up Imgui for window \'%s\'", title.c_str());
 
-			err = vkResetCommandPool(vulkanDevice, command_pool, 0);
-			check_vk_result(err);
-			VkCommandBufferBeginInfo begin_info = {};
-			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-			err = vkBeginCommandBuffer(command_buffer, &begin_info);
-			check_vk_result(err);
+			// Create framebuffers
+			int w, h;
+			glfwGetFramebufferSize(handle, &w, &h);
+			ImGui_ImplVulkanH_Window* wd = &mainWindowData;
+			SetupVulkanWindow(wd, surface, w, h);
 
-			ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+			// Setup IMGUI context
+			ImGui::CreateContext();
+			ImGuiIO& io = ImGui::GetIO(); (void)io;
+			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-			VkSubmitInfo end_info = {};
-			end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-			end_info.commandBufferCount = 1;
-			end_info.pCommandBuffers = &command_buffer;
-			err = vkEndCommandBuffer(command_buffer);
-			check_vk_result(err);
-			err = vkQueueSubmit(vulkanQueue, 1, &end_info, VK_NULL_HANDLE);
-			check_vk_result(err);
+			ImGui::StyleColorsDark();
 
-			err = vkDeviceWaitIdle(vulkanDevice);
-			check_vk_result(err);
-			ImGui_ImplVulkan_DestroyFontUploadObjects();
+			ImGui_ImplGlfw_InitForVulkan(handle, true);
+			ImGui_ImplVulkan_InitInfo init_info = {};
+			init_info.Instance = vulkanInstance;
+			init_info.PhysicalDevice = vulkanPhysicalDevice;
+			init_info.Device = vulkanDevice;
+			init_info.QueueFamily = vulkanQueueFamily;
+			init_info.Queue = vulkanQueue;
+			init_info.PipelineCache = vulkanPipelineCache;
+			init_info.DescriptorPool = vulkanDescriptorPool;
+			init_info.Subpass = 0;
+			init_info.MinImageCount = minImageCount;
+			init_info.ImageCount = wd->ImageCount;
+			init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+			init_info.Allocator = nullptr;
+			init_info.CheckVkResultFn = check_vk_result;
+			ImGui_ImplVulkan_Init(&init_info, wd->RenderPass);
+
+			// Upload Fonts
+			{
+				// Use any command queue
+				VkCommandPool command_pool = wd->Frames[wd->FrameIndex].CommandPool;
+				VkCommandBuffer command_buffer = wd->Frames[wd->FrameIndex].CommandBuffer;
+
+				err = vkResetCommandPool(vulkanDevice, command_pool, 0);
+				check_vk_result(err);
+				VkCommandBufferBeginInfo begin_info = {};
+				begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+				begin_info.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+				err = vkBeginCommandBuffer(command_buffer, &begin_info);
+				check_vk_result(err);
+
+				ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
+
+				VkSubmitInfo end_info = {};
+				end_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+				end_info.commandBufferCount = 1;
+				end_info.pCommandBuffers = &command_buffer;
+				err = vkEndCommandBuffer(command_buffer);
+				check_vk_result(err);
+				err = vkQueueSubmit(vulkanQueue, 1, &end_info, VK_NULL_HANDLE);
+				check_vk_result(err);
+
+				err = vkDeviceWaitIdle(vulkanDevice);
+				check_vk_result(err);
+				ImGui_ImplVulkan_DestroyFontUploadObjects();
+			}
 		}
 
 		initialized = true;
@@ -101,11 +107,14 @@ namespace Otter
 		VkResult err = vkDeviceWaitIdle(vulkanDevice);
 		check_vk_result(err);
 
-		ImGui_ImplVulkan_Shutdown();
-		ImGui_ImplGlfw_Shutdown();
-		ImGui::DestroyContext(imGuiContext);
+		if (imGuiEnabled)
+		{
+			ImGui_ImplVulkan_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+			ImGui::DestroyContext();
+			ImGui_ImplVulkanH_DestroyWindow(vulkanInstanceRef, vulkanDevice, &mainWindowData, nullptr);
+		}
 
-    	ImGui_ImplVulkanH_DestroyWindow(vulkanInstanceRef, vulkanDevice, &mainWindowData, nullptr);
 		vkDestroyDescriptorPool(vulkanDevice, vulkanDescriptorPool, nullptr);
 		vkDestroyDevice(vulkanDevice, nullptr);
 
@@ -117,36 +126,38 @@ namespace Otter
 		if (!IsValid() || !initialized)
 			return;
 
-		ImGui::SetCurrentContext(imGuiContext);
+		if (imGuiEnabled)
+		{
+			if (swapChainRebuild)
+			{
+				int width, height;
+				glfwGetFramebufferSize(handle, &width, &height);
+				if (width > 0 && height > 0)
+				{
+					ImGui_ImplVulkan_SetMinImageCount(minImageCount);
+					ImGui_ImplVulkanH_CreateOrResizeWindow(vulkanInstanceRef, vulkanPhysicalDevice, vulkanDevice, &mainWindowData, vulkanQueueFamily, nullptr, width, height, minImageCount);
+					mainWindowData.FrameIndex = 0;
+					swapChainRebuild = false;
+				}
+			}
 
-		if (swapChainRebuild)
-        {
-            int width, height;
-            glfwGetFramebufferSize(handle, &width, &height);
-            if (width > 0 && height > 0)
-            {
-                ImGui_ImplVulkan_SetMinImageCount(minImageCount);
-                ImGui_ImplVulkanH_CreateOrResizeWindow(vulkanInstanceRef, vulkanPhysicalDevice, vulkanDevice, &mainWindowData, vulkanQueueFamily, nullptr, width, height, minImageCount);
-                mainWindowData.FrameIndex = 0;
-                swapChainRebuild = false;
-            }
-        }
+			ImGui_ImplVulkan_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
 
-        ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+			this->DrawImGui();
 
-		this->DrawImGui();
-
-		ImGui::Render();
-        ImDrawData* draw_data = ImGui::GetDrawData();
-        const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
-        if (!is_minimized)
-        {
-			ImGui_ImplVulkanH_Window* wd = &mainWindowData;
-            FrameRender(wd, draw_data);
-            FramePresent(wd);
-        }
+			ImGui::Render();
+			ImDrawData* draw_data = ImGui::GetDrawData();
+			const bool is_minimized = (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f);
+			if (!is_minimized)
+			{
+				//TODO pull out frame rendering
+				ImGui_ImplVulkanH_Window* wd = &mainWindowData;
+				FrameRender(wd, draw_data);
+				FramePresent(wd);
+			}
+		}
 	}
 
 	bool Window::ShouldBeDestroyed()

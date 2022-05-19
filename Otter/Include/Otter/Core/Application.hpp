@@ -23,7 +23,7 @@ namespace Otter
 		virtual void OnStop() = 0;
 
 		template<typename T>
-		bool CreateWindow(glm::vec2 size, std::string title);
+		bool CreateWindow(glm::vec2 size, std::string title, bool enableImGui);
 		bool DestroyWindow(std::shared_ptr<Otter::Window> window);
 		bool CreateVulkanInstance();
 
@@ -39,9 +39,9 @@ namespace Otter
 	Application* CreateApplication();
 
 	template<typename T>
-	bool Application::CreateWindow(glm::vec2 size, std::string title)
+	bool Application::CreateWindow(glm::vec2 size, std::string title, bool enableImGui)
 	{
-		std::shared_ptr<T> window = std::make_shared<T>(size, title, vulkanInstance);
+		std::shared_ptr<T> window = std::make_shared<T>(size, title, vulkanInstance, enableImGui);
 		if (!window->IsValid())
 			return false;
 

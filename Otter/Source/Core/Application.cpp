@@ -57,7 +57,6 @@ namespace Otter {
 			return;
 		}
 
-		glfwSwapInterval(0);
 		OnStart();
 
 		float dt = 0.0f;

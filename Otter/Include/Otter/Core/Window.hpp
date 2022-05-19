@@ -13,7 +13,7 @@ namespace Otter
 	class Window 
 	{
 	public:
-		Window(glm::vec2 size, std::string title, VkInstance vulkanInstance);
+		Window(glm::vec2 size, std::string title, VkInstance vulkanInstance, bool enableImGui);
 		virtual ~Window();
 
 		inline bool IsValid() { return handle != nullptr; }
@@ -41,10 +41,10 @@ namespace Otter
 		VkQueue vulkanQueue;
 		VkPipelineCache vulkanPipelineCache;
 		VkDescriptorPool vulkanDescriptorPool;
-
-		ImGuiContext* imGuiContext;
-		ImGui_ImplVulkanH_Window mainWindowData;
 		const int minImageCount = 2;
 		bool swapChainRebuild = false;
+
+		bool imGuiEnabled;
+		ImGui_ImplVulkanH_Window mainWindowData;
 	};
 }

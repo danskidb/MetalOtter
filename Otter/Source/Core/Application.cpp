@@ -57,16 +57,8 @@ namespace Otter {
 			return;
 		}
 
+		glfwSwapInterval(0);
 		OnStart();
-
-		// uint32_t extensionCount = 0;
-		// vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-		// std::vector<VkExtensionProperties> extensions(extensionCount);
-		// vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-
-		// LOG_F(INFO, "%u vulkan extensions supported", extensionCount);
-		// for (const auto& extension : extensions)
-		// 	LOG_F(INFO, "\t %s", extension.extensionName);
 
 		float dt = 0.0f;
 		while (shouldTick)
@@ -97,16 +89,6 @@ namespace Otter {
 		vkDestroyInstance(vulkanInstance, nullptr);
 		vulkanInstance = nullptr;
 		glfwTerminate();
-	}
-
-	bool Application::CreateWindow(glm::vec2 size, std::string title)
-	{
-		std::shared_ptr<Otter::Window> window = std::make_shared<Otter::Window>(size, title, vulkanInstance);
-		if (!window->IsValid())
-			return false;
-
-		windows.push_back(window);
-		return true;
 	}
 
 	bool Application::DestroyWindow(std::shared_ptr<Otter::Window> window)

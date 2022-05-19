@@ -14,11 +14,13 @@ namespace Otter
 	{
 	public:
 		Window(glm::vec2 size, std::string title, VkInstance vulkanInstance);
-		~Window();
+		virtual ~Window();
 
 		inline bool IsValid() { return handle != nullptr; }
 
 		virtual void OnTick();
+		virtual void DrawImGui() = 0;
+
 		bool ShouldBeDestroyed();
 		bool CreateVulkanDevice();
 		void SetupVulkanWindow(ImGui_ImplVulkanH_Window* wd, VkSurfaceKHR surface, int width, int height);

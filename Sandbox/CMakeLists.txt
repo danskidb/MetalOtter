@@ -1,4 +1,8 @@
-add_executable(Sandbox Source/SandboxApp.cpp)
+add_executable(Sandbox 
+	Source/SandboxApp.cpp
+	Source/MainWindow.cpp
+	Source/SecondWindow.cpp
+)
 target_include_directories(Sandbox PRIVATE Include)
 
 target_include_directories(Sandbox PUBLIC ../Otter/Include)

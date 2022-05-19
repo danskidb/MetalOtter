@@ -1,6 +1,7 @@
 add_compile_definitions(GLFW_INCLUDE_VULKAN)
 add_compile_definitions(GLM_FORCE_RADIANS)
 add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
+#add_compile_definitions(IMGUI_UNLIMITED_FRAME_RATE)
 
 set(IMGUI_DIR ../Libraries/imgui)
 

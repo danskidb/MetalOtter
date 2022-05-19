@@ -1,4 +1,6 @@
 #include "SandboxApp.hpp"
+#include "MainWindow.hpp"
+#include "SecondWindow.hpp"
 
 namespace Sandbox {
 
@@ -9,8 +11,8 @@ namespace Sandbox {
 
 	void SandboxApp::OnStart()
 	{
-		CreateWindow({480, 640}, "Main Window");
-		//CreateWindow({640, 480}, "Second Window");
+		CreateWindow<Sandbox::MainWindow>({480, 640}, "Main Window");
+		CreateWindow<Sandbox::SecondWindow>({640, 480}, "Second Window");
 	}
 
 	void SandboxApp::OnTick(float deltaTime)

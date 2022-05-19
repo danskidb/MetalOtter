@@ -38,6 +38,9 @@ namespace Otter
 		imGuiContext = ImGui::CreateContext();
 		ImGui::SetCurrentContext(imGuiContext);
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
+	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
 		ImGui::StyleColorsDark();
 
 		ImGui_ImplGlfw_InitForVulkan(handle, true);
@@ -109,7 +112,6 @@ namespace Otter
 		glfwDestroyWindow(handle);
 	}
 
-    bool show_demo_window = true;
 	void Window::OnTick()
 	{
 		if (!IsValid() || !initialized)
@@ -134,7 +136,7 @@ namespace Otter
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-		ImGui::ShowDemoWindow(&show_demo_window);
+		this->DrawImGui();
 
 		ImGui::Render();
         ImDrawData* draw_data = ImGui::GetDrawData();
@@ -281,12 +283,12 @@ namespace Otter
 
 		// Select Present Mode
 	#ifdef IMGUI_UNLIMITED_FRAME_RATE
-		VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR };
+		VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR };
 	#else
 		VkPresentModeKHR present_modes[] = { VK_PRESENT_MODE_FIFO_KHR };
 	#endif
 		wd->PresentMode = ImGui_ImplVulkanH_SelectPresentMode(vulkanPhysicalDevice, wd->Surface, &present_modes[0], IM_ARRAYSIZE(present_modes));
-		LOG_F(INFO, "[vulkan] Selected PresentMode = %d", wd->PresentMode);
+		//LOG_F(INFO, "[vulkan] Selected PresentMode = %d", wd->PresentMode);
 
 		// Create SwapChain, RenderPass, Framebuffer, etc.
 		assert(minImageCount >= 2);

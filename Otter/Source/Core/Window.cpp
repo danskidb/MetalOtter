@@ -1,6 +1,6 @@
 #include "Otter/Core/Window.hpp"
 #include "loguru.hpp"
-#include <vector>
+#include <set>
 
 namespace Otter 
 {
@@ -25,25 +25,22 @@ namespace Otter
 		LOG_F(INFO, "Initializing new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
 		
 		InitializeVulkan();
-
-    	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
-		check_vk_result(err);
-
 		initialized = true;
 	}
 
 	Window::~Window()
 	{
 		if (!IsValid())
+		{
+			LOG_F(WARNING, "Window \'%s\' was not valid at destruction time.", title.c_str());
 			return;
+		}
 
-		VkResult err = vkDeviceWaitIdle(vulkanDevice);
+		VkResult err = vkDeviceWaitIdle(logicalDevice);
 		check_vk_result(err);
 
-		vkDestroyDescriptorPool(vulkanDevice, vulkanDescriptorPool, nullptr);
 		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
-		vkDestroyDevice(vulkanDevice, nullptr);
-
+		vkDestroyDevice(logicalDevice, nullptr);
 		glfwDestroyWindow(handle);
 	}
 
@@ -57,86 +54,22 @@ namespace Otter
 
 	void Window::OnTick()
 	{
-		if (!IsValid() || !initialized)
+		if (!IsValid())
 			return;
 	}
 
 	bool Window::InitializeVulkan()
 	{
+		CreateSurface();
 		SelectPhysicalDevice();
-
-		VkResult err;
-
-		// Select graphics queue family
-		{
-			uint32_t count;
-			vkGetPhysicalDeviceQueueFamilyProperties(vulkanPhysicalDevice, &count, NULL);
-			VkQueueFamilyProperties* queues = (VkQueueFamilyProperties*)malloc(sizeof(VkQueueFamilyProperties) * count);
-			vkGetPhysicalDeviceQueueFamilyProperties(vulkanPhysicalDevice, &count, queues);
-			for (uint32_t i = 0; i < count; i++)
-				if (queues[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-				{
-					vulkanQueueFamily = i;
-					break;
-				}
-			free(queues);
-			assert(vulkanQueueFamily != (uint32_t)-1);
-		}
-
-		// Create Logical Device (with 1 queue)
-		{
-			int device_extension_count = 1;
-			const char* device_extensions[] = { "VK_KHR_swapchain" };
-			const float queue_priority[] = { 1.0f };
-			VkDeviceQueueCreateInfo queue_info[1] = {};
-			queue_info[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-			queue_info[0].queueFamilyIndex = vulkanQueueFamily;
-			queue_info[0].queueCount = 1;
-			queue_info[0].pQueuePriorities = queue_priority;
-			VkDeviceCreateInfo create_info = {};
-			create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-			create_info.queueCreateInfoCount = sizeof(queue_info) / sizeof(queue_info[0]);
-			create_info.pQueueCreateInfos = queue_info;
-			create_info.enabledExtensionCount = device_extension_count;
-			create_info.ppEnabledExtensionNames = device_extensions;
-			err = vkCreateDevice(vulkanPhysicalDevice, &create_info, nullptr, &vulkanDevice);
-			check_vk_result(err);
-			vkGetDeviceQueue(vulkanDevice, vulkanQueueFamily, 0, &vulkanQueue);
-		}
-		if (err != VK_SUCCESS)
-			return false;
-
-		// Create Descriptor Pool
-		{
-			VkDescriptorPoolSize pool_sizes[] =
-			{
-				{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-			};
-			VkDescriptorPoolCreateInfo pool_info = {};
-			pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-
-			int arraysize = (int)(sizeof(pool_sizes) / sizeof(*(pool_sizes)));
-			pool_info.maxSets = 1000 * arraysize;
-			pool_info.poolSizeCount = (uint32_t)arraysize;
-			pool_info.pPoolSizes = pool_sizes;
-			err = vkCreateDescriptorPool(vulkanDevice, &pool_info, nullptr, &vulkanDescriptorPool);
-			check_vk_result(err);
-		}
-		if (err != VK_SUCCESS)
-			return false;
-
+		CreateLogicalDevice();
 		return true;
+	}
+
+	void Window::CreateSurface()
+	{
+    	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
+		check_vk_result(err);
 	}
 
 	void Window::SelectPhysicalDevice()
@@ -151,25 +84,123 @@ namespace Otter
 		check_vk_result(err);
 		assert(err == VK_SUCCESS);
 
+		std::vector<VkPhysicalDevice> suitableGpus{};
+		for (const auto gpu : gpus)
+			if (IsPhysicalDeviceSuitable(gpu))
+				suitableGpus.push_back(gpu);
+		assert(suitableGpus.size() > 0);
+
 		// If a number >1 of GPUs got reported, find discrete GPU if present, or use first one available. This covers
 		// most common cases (multi-gpu/integrated+dedicated graphics). Handling more complicated setups (multiple
 		// dedicated GPUs) is out of scope of this sample.
-		int use_gpu = 0;
-		for (int i = 0; i < (int)gpuCount; i++)
+		int useGpu = 0;
+		for (int i = 0; i < suitableGpus.size(); i++)
 		{
 			VkPhysicalDeviceProperties properties;
-			vkGetPhysicalDeviceProperties(gpus[i], &properties);
+			vkGetPhysicalDeviceProperties(suitableGpus[i], &properties);
 			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 			{
-				use_gpu = i;
+				useGpu = i;
 				break;
 			}
 		}
-
-		vulkanPhysicalDevice = gpus[use_gpu];
+		physicalDevice = suitableGpus[useGpu];
+		assert(physicalDevice != VK_NULL_HANDLE);
 
 		VkPhysicalDeviceProperties properties;
-		vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &properties);
+		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 		LOG_F(INFO, "%s is using GPU %s", this->title.c_str(), properties.deviceName);
+	}
+
+	bool Window::IsPhysicalDeviceSuitable(VkPhysicalDevice gpu)
+	{
+		QueueFamilyIndices indices = FindQueueFamilies(gpu);
+		return indices.graphicsFamily.has_value() && HasDeviceExtensionSupport(gpu); 
+	}
+
+	bool Window::HasDeviceExtensionSupport(VkPhysicalDevice gpu)
+	{
+		uint32_t extensionCount;
+		vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, nullptr);
+
+		std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+		vkEnumerateDeviceExtensionProperties(gpu, nullptr, &extensionCount, availableExtensions.data());
+
+		// Make a copy of the required extensions and remove them if they are present on the device.
+		// If no extensions are part of the list anymore, we have them all and we're good to go.
+		std::set<std::string> requiredExtensions(requiredPhysicalDeviceExtensions.begin(), requiredPhysicalDeviceExtensions.end());
+		for (const auto& extension : availableExtensions) {
+			requiredExtensions.erase(extension.extensionName);
+		}
+
+		return requiredExtensions.empty();
+	}
+
+	QueueFamilyIndices Window::FindQueueFamilies(VkPhysicalDevice gpu)
+	{
+		QueueFamilyIndices indices;
+
+		uint32_t queueFamilyCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queueFamilyCount, nullptr);
+
+		std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(gpu, &queueFamilyCount, queueFamilies.data());
+
+		// Find at least one queue family that supports Graphics.
+		int i = 0;
+		for (const auto& queueFamily : queueFamilies)
+		{
+			VkBool32 presentSupport = false;
+			vkGetPhysicalDeviceSurfaceSupportKHR(gpu, i, surface, &presentSupport);
+			if (presentSupport)
+				indices.presentFamily = i;
+
+			if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+				indices.graphicsFamily = i;
+
+			i++;
+		}
+
+		return indices;
+	}
+
+	void Window::CreateLogicalDevice()
+	{
+		// Specify queues to be created alongside the device.
+		assert(physicalDevice != VK_NULL_HANDLE);
+		QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+
+		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+		std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+		float queuePriority = 1.0f;
+		for (uint32_t queueFamily : uniqueQueueFamilies) {
+			VkDeviceQueueCreateInfo queueCreateInfo{};
+			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+			queueCreateInfo.queueFamilyIndex = queueFamily;
+			queueCreateInfo.queueCount = 1;
+			queueCreateInfo.pQueuePriorities = &queuePriority;
+			queueCreateInfos.push_back(queueCreateInfo);
+		}
+
+		// leaving everything to false until we want to do more special things with VK.
+		VkPhysicalDeviceFeatures deviceFeatures{};
+
+		// Create the logical device.
+		VkDeviceCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+		createInfo.pQueueCreateInfos = queueCreateInfos.data();
+		createInfo.pEnabledFeatures = &deviceFeatures;
+		createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredPhysicalDeviceExtensions.size());
+		createInfo.ppEnabledExtensionNames = requiredPhysicalDeviceExtensions.data();
+		createInfo.enabledLayerCount = 0;	// Validation layers are disabled on application level currently.
+
+		VkResult result = vkCreateDevice(physicalDevice, &createInfo, nullptr, &logicalDevice);
+		check_vk_result(result);
+
+		// After creation, get a reference to our queues.
+		vkGetDeviceQueue(logicalDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
+		vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
 	}
 }

@@ -30,7 +30,6 @@ namespace Otter {
 
 	Application::~Application()
 	{
-		windows.clear();
 	}
 
 	void Application::Run(int argc, char* argv[], char* envp[])
@@ -59,30 +58,38 @@ namespace Otter {
 
 		OnStart();
 
+		std::vector<std::shared_ptr<Otter::Window>> windowsToBeDestroyed;
 		float dt = 0.0f;
 		while (shouldTick)
 		{
 			auto startTime = std::chrono::high_resolution_clock::now();
 
+			glfwPollEvents();
 			OnTick(dt);
+
 			for(auto window : windows)
 			{
 				if (window->ShouldBeDestroyed())
 				{
-					DestroyWindow(window);
+					windowsToBeDestroyed.push_back(window);
 					continue;
 				}
 
 				window->OnTick();
 			}
 			
-			glfwPollEvents();
+			for(auto window : windowsToBeDestroyed)
+				DestroyWindow(window);
+			windowsToBeDestroyed.clear();
+
 			if (windows.empty())	// this causes the app to quit when the last window is closed.
 				shouldTick = false;
 
 			auto stopTime = std::chrono::high_resolution_clock::now();
 			dt = std::chrono::duration<float, std::chrono::seconds::period>(stopTime - startTime).count();
 		}
+
+		windows.clear();
 
 		OnStop();
 		vkDestroyInstance(vulkanInstance, nullptr);
@@ -129,7 +136,7 @@ namespace Otter {
 		createInfo.enabledExtensionCount = glfwExtensionCount;
 		createInfo.ppEnabledExtensionNames = glfwExtensions;
 
-		createInfo.enabledLayerCount = 0;
+		createInfo.enabledLayerCount = 0;	//For validation layers, implement for debugging purposes.
 
 		VkResult result = vkCreateInstance(&createInfo, nullptr, &vulkanInstance);
 		check_vk_result(result);

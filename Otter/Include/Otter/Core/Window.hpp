@@ -14,27 +14,27 @@ namespace Otter
 		virtual ~Window();
 
 		inline bool IsValid() { return handle != nullptr; }
+		bool ShouldBeDestroyed();
 
 		virtual void OnTick();
 
-		bool ShouldBeDestroyed();
-		bool CreateVulkanDevice();
-
 	private:
 		bool initialized = false;
-		VkInstance vulkanInstanceRef;
-
 		std::string title;
-		GLFWwindow* handle;
-		VkSurfaceKHR surface;
 
-		VkPhysicalDevice vulkanPhysicalDevice;
-		VkDevice vulkanDevice;
+		GLFWwindow* handle;
+		VkInstance vulkanInstance = VK_NULL_HANDLE;
+		VkSurfaceKHR surface = VK_NULL_HANDLE;
+
+		VkPhysicalDevice vulkanPhysicalDevice = VK_NULL_HANDLE;
+		VkDevice vulkanDevice = VK_NULL_HANDLE;
+
 		uint32_t vulkanQueueFamily = (uint32_t)-1;
-		VkQueue vulkanQueue;
-		VkPipelineCache vulkanPipelineCache;
-		VkDescriptorPool vulkanDescriptorPool;
-		const int minImageCount = 2;
-		bool swapChainRebuild = false;
+		VkQueue vulkanQueue = VK_NULL_HANDLE;
+		VkDescriptorPool vulkanDescriptorPool = VK_NULL_HANDLE;
+
+		bool InitializeVulkan();
+		void SelectPhysicalDevice();	// Picks a GPU to run Vulkan on.
+		//TODO; Queue families
 	};
 }

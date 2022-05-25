@@ -32,7 +32,6 @@ namespace Otter
 		std::vector<std::shared_ptr<Otter::Window>> windows;
 		bool windowWasDestroyed = true;
 		bool shouldTick = true;
-
 	};
 
 	// To be defined in CLIENT

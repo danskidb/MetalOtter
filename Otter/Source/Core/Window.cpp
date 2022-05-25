@@ -1,5 +1,6 @@
 #include "Otter/Core/Window.hpp"
 #include "loguru.hpp"
+#include <vector>
 
 namespace Otter 
 {
@@ -16,14 +17,14 @@ namespace Otter
 
 	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
 	{
-		vulkanInstanceRef= vulkanInstance;
+		this->vulkanInstance = vulkanInstance;
 		this->title = title;
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
 		LOG_F(INFO, "Initializing new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
 		
-		CreateVulkanDevice();
+		InitializeVulkan();
 
     	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
 		check_vk_result(err);
@@ -35,22 +36,15 @@ namespace Otter
 	{
 		if (!IsValid())
 			return;
-		
+
 		VkResult err = vkDeviceWaitIdle(vulkanDevice);
 		check_vk_result(err);
 
 		vkDestroyDescriptorPool(vulkanDevice, vulkanDescriptorPool, nullptr);
-		vkDestroySurfaceKHR(vulkanInstanceRef, surface, nullptr);
+		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
 		vkDestroyDevice(vulkanDevice, nullptr);
 
 		glfwDestroyWindow(handle);
-	}
-
-	void Window::OnTick()
-	{
-		if (!IsValid() || !initialized)
-			return;
-
 	}
 
 	bool Window::ShouldBeDestroyed()
@@ -61,45 +55,17 @@ namespace Otter
 			return glfwWindowShouldClose(handle) != 0;
 	}
 
-	bool Window::CreateVulkanDevice()
+	void Window::OnTick()
 	{
+		if (!IsValid() || !initialized)
+			return;
+	}
+
+	bool Window::InitializeVulkan()
+	{
+		SelectPhysicalDevice();
+
 		VkResult err;
-
-		// Select GPU
-		{
-			uint32_t gpu_count;
-			err = vkEnumeratePhysicalDevices(vulkanInstanceRef, &gpu_count, NULL);
-			check_vk_result(err);
-			assert(gpu_count > 0);
-
-			VkPhysicalDevice* gpus = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * gpu_count);
-			err = vkEnumeratePhysicalDevices(vulkanInstanceRef, &gpu_count, gpus);
-			check_vk_result(err);
-			assert(err == VK_SUCCESS);
-
-			// If a number >1 of GPUs got reported, find discrete GPU if present, or use first one available. This covers
-			// most common cases (multi-gpu/integrated+dedicated graphics). Handling more complicated setups (multiple
-			// dedicated GPUs) is out of scope of this sample.
-			int use_gpu = 0;
-			for (int i = 0; i < (int)gpu_count; i++)
-			{
-				VkPhysicalDeviceProperties properties;
-				vkGetPhysicalDeviceProperties(gpus[i], &properties);
-				if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-				{
-					use_gpu = i;
-					break;
-				}
-			}
-
-			vulkanPhysicalDevice = gpus[use_gpu];
-
-			VkPhysicalDeviceProperties properties;
-			vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &properties);
-			LOG_F(INFO, "%s is using GPU %s", this->title.c_str(), properties.deviceName);
-
-			free(gpus);
-		}
 
 		// Select graphics queue family
 		{
@@ -137,6 +103,8 @@ namespace Otter
 			check_vk_result(err);
 			vkGetDeviceQueue(vulkanDevice, vulkanQueueFamily, 0, &vulkanQueue);
 		}
+		if (err != VK_SUCCESS)
+			return false;
 
 		// Create Descriptor Pool
 		{
@@ -165,7 +133,43 @@ namespace Otter
 			err = vkCreateDescriptorPool(vulkanDevice, &pool_info, nullptr, &vulkanDescriptorPool);
 			check_vk_result(err);
 		}
+		if (err != VK_SUCCESS)
+			return false;
 
 		return true;
+	}
+
+	void Window::SelectPhysicalDevice()
+	{
+		uint32_t gpuCount;
+		VkResult err = vkEnumeratePhysicalDevices(vulkanInstance, &gpuCount, NULL);
+		check_vk_result(err);
+		assert(gpuCount > 0);	//TODO make custom macro with std::runtime_error and Loguru.
+
+		std::vector<VkPhysicalDevice> gpus(gpuCount);
+		err = vkEnumeratePhysicalDevices(vulkanInstance, &gpuCount, gpus.data());
+		check_vk_result(err);
+		assert(err == VK_SUCCESS);
+
+		// If a number >1 of GPUs got reported, find discrete GPU if present, or use first one available. This covers
+		// most common cases (multi-gpu/integrated+dedicated graphics). Handling more complicated setups (multiple
+		// dedicated GPUs) is out of scope of this sample.
+		int use_gpu = 0;
+		for (int i = 0; i < (int)gpuCount; i++)
+		{
+			VkPhysicalDeviceProperties properties;
+			vkGetPhysicalDeviceProperties(gpus[i], &properties);
+			if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			{
+				use_gpu = i;
+				break;
+			}
+		}
+
+		vulkanPhysicalDevice = gpus[use_gpu];
+
+		VkPhysicalDeviceProperties properties;
+		vkGetPhysicalDeviceProperties(vulkanPhysicalDevice, &properties);
+		LOG_F(INFO, "%s is using GPU %s", this->title.c_str(), properties.deviceName);
 	}
 }

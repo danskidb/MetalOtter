@@ -5,8 +5,7 @@ namespace Sandbox {
 	class MainWindow : public Otter::Window
 	{
 	public:
-		MainWindow(glm::vec2 size, std::string title, VkInstance vulkanInstance, bool enableImGui) : Otter::Window(size, title, vulkanInstance, enableImGui) {}
-		virtual void DrawImGui();
+		MainWindow(glm::vec2 size, std::string title, VkInstance vulkanInstance) : Otter::Window(size, title, vulkanInstance) {}
 	};
 
 }

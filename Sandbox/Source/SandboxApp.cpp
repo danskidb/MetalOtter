@@ -11,8 +11,8 @@ namespace Sandbox {
 
 	void SandboxApp::OnStart()
 	{
-		CreateWindow<Sandbox::MainWindow>({480, 640}, "Main Window", false);
-		CreateWindow<Sandbox::SecondWindow>({640, 480}, "Second Window", true);
+		CreateWindow<Sandbox::MainWindow>({480, 640}, "Main Window");
+		CreateWindow<Sandbox::SecondWindow>({640, 480}, "Second Window");
 	}
 
 	void SandboxApp::OnTick(float deltaTime)

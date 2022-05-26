@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain#page_Querying-details-of-swap-chain-support
+https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Introduction
 
 ## Goals
 - render texture in both windows separately, one with ImGui
@@ -12,7 +12,6 @@ https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Swap_chain#page_Quer
 - dedicated server library
 
 ## Todo
-- finish swap chain
 - force aspect ratio
 - window resize handling
 - entity component system

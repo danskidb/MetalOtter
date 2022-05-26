@@ -8,6 +8,16 @@
 
 namespace Otter 
 {
+	static const std::vector<const char*> requiredValidationLayers = {
+		"VK_LAYER_KHRONOS_validation"
+	};	
+
+	#ifdef NDEBUG
+	const bool enableValidationLayers = false;
+	#else
+	const bool enableValidationLayers = true;
+	#endif
+
 	class Application
 	{
 	public:
@@ -29,9 +39,17 @@ namespace Otter
 
 	private:
 		VkInstance vulkanInstance;
+		VkDebugUtilsMessengerEXT debugMessenger;
 		std::vector<std::shared_ptr<Otter::Window>> windows;
 		bool windowWasDestroyed = true;
 		bool shouldTick = true;
+
+		VkResult CreateDebugUtilsMessengerEXT(VkInstance vulkanInstance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
+		void DestroyDebugUtilsMessengerEXT(VkInstance vulkanInstance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
+		bool CheckValidationLayerSupport();
+		std::vector<const char*> GetRequiredExtensions();
+		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+		void SetupDebugMessenger();
 	};
 
 	// To be defined in CLIENT

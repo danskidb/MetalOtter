@@ -39,8 +39,9 @@ namespace Otter
 		VkResult err = vkDeviceWaitIdle(logicalDevice);
 		check_vk_result(err);
 
-		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
+		vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
 		vkDestroyDevice(logicalDevice, nullptr);
+		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
 		glfwDestroyWindow(handle);
 	}
 
@@ -63,6 +64,7 @@ namespace Otter
 		CreateSurface();
 		SelectPhysicalDevice();
 		CreateLogicalDevice();
+		CreateSwapChain();
 		return true;
 	}
 
@@ -115,7 +117,16 @@ namespace Otter
 	bool Window::IsPhysicalDeviceSuitable(VkPhysicalDevice gpu)
 	{
 		QueueFamilyIndices indices = FindQueueFamilies(gpu);
-		return indices.graphicsFamily.has_value() && HasDeviceExtensionSupport(gpu); 
+
+		bool extensionsSupported = HasDeviceExtensionSupport(gpu);
+
+		bool swapChainAdequate = false;
+		if (extensionsSupported) {
+			SwapChainSupportDetails swapChainSupport = FindSwapChainSupport(gpu);
+			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
+		}
+
+		return indices.graphicsFamily.has_value() && extensionsSupported && swapChainAdequate;
 	}
 
 	bool Window::HasDeviceExtensionSupport(VkPhysicalDevice gpu)
@@ -129,9 +140,8 @@ namespace Otter
 		// Make a copy of the required extensions and remove them if they are present on the device.
 		// If no extensions are part of the list anymore, we have them all and we're good to go.
 		std::set<std::string> requiredExtensions(requiredPhysicalDeviceExtensions.begin(), requiredPhysicalDeviceExtensions.end());
-		for (const auto& extension : availableExtensions) {
+		for (const auto& extension : availableExtensions)
 			requiredExtensions.erase(extension.extensionName);
-		}
 
 		return requiredExtensions.empty();
 	}
@@ -174,7 +184,8 @@ namespace Otter
 		std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
 		float queuePriority = 1.0f;
-		for (uint32_t queueFamily : uniqueQueueFamilies) {
+		for (uint32_t queueFamily : uniqueQueueFamilies)
+		{
 			VkDeviceQueueCreateInfo queueCreateInfo{};
 			queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 			queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -202,5 +213,164 @@ namespace Otter
 		// After creation, get a reference to our queues.
 		vkGetDeviceQueue(logicalDevice, indices.graphicsFamily.value(), 0, &graphicsQueue);
 		vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
+	}
+
+	void Window::CreateSwapChain()
+	{
+		SwapChainSupportDetails swapChainSupport = FindSwapChainSupport(physicalDevice);
+		VkSurfaceFormatKHR surfaceFormat = SelectSwapChainSurfaceFormat(swapChainSupport.formats);
+		VkPresentModeKHR presentMode = SelectSwapChainPresentMode(swapChainSupport.presentModes);
+		VkExtent2D extent = SelectSwapChainExtent(swapChainSupport.capabilities);
+
+		uint32_t swapChainImageCount = swapChainSupport.capabilities.minImageCount + 1;
+		uint32_t preClamp = swapChainImageCount;
+		swapChainImageCount = std::clamp(swapChainImageCount, swapChainSupport.capabilities.minImageCount, swapChainSupport.capabilities.maxImageCount);
+		if (swapChainImageCount != preClamp)
+			LOG_F(WARNING, "Swap Chain Image Count preconfigured was out of supported bounds: old[%u] corrected[%u] min[%u] max[%u].", preClamp, swapChainImageCount, swapChainSupport.capabilities.minImageCount, swapChainSupport.capabilities.maxImageCount);
+
+		VkSwapchainCreateInfoKHR createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		createInfo.surface = surface;
+		createInfo.minImageCount = swapChainImageCount;
+		createInfo.imageFormat = surfaceFormat.format;
+		createInfo.imageColorSpace = surfaceFormat.colorSpace;
+		createInfo.imageExtent = extent;
+		createInfo.imageArrayLayers = 1;	// increase for stereoscopic 3d
+		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;	//direct usage, modify if you want to run post-processing etc. 
+
+		// Specify how to handle swap chain images across multiple queue families (graphics, present)
+		// There are two ways to handle images that are accessed from multiple queues:
+    	// VK_SHARING_MODE_EXCLUSIVE
+		// An image is owned by one queue family at a time and ownership must be explicitly transferred before using it in another queue family. This option offers the best performance.
+    	//
+		// VK_SHARING_MODE_CONCURRENT
+		// Images can be used across multiple queue families without explicit ownership transfers.
+
+		QueueFamilyIndices indices = FindQueueFamilies(physicalDevice);
+		uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+		// If the queue families differ, use concurrent mdoe so we don't have to deal with ownership.
+		if (indices.graphicsFamily != indices.presentFamily)
+		{
+			createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+			createInfo.queueFamilyIndexCount = 2;
+			createInfo.pQueueFamilyIndices = queueFamilyIndices;
+		}
+		else
+		{
+			createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+			createInfo.queueFamilyIndexCount = 0; // Optional
+			createInfo.pQueueFamilyIndices = nullptr; // Optional
+		}
+
+		createInfo.preTransform = swapChainSupport.capabilities.currentTransform;	// We can specify that a certain transform should be applied to images in the swap chain if it is supported (supportedTransforms in capabilities), like a 90 degree clockwise rotation or horizontal flip.
+		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;	// Ignore alpha for blending with other windows.
+		createInfo.presentMode = presentMode;
+		createInfo.clipped = VK_TRUE;	// We don't care about the color of pixels that are obscured, ie minimized or if another window is over.
+		createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+		VkResult result = vkCreateSwapchainKHR(logicalDevice, &createInfo, nullptr, &swapChain);
+		check_vk_result(result);
+
+		vkGetSwapchainImagesKHR(logicalDevice, swapChain, &swapChainImageCount, nullptr);
+		swapChainImages.resize(swapChainImageCount);
+		vkGetSwapchainImagesKHR(logicalDevice, swapChain, &swapChainImageCount, swapChainImages.data());
+		swapChainImageFormat = surfaceFormat.format;
+		swapChainExtent = extent;
+	}
+
+	SwapChainSupportDetails Window::FindSwapChainSupport(VkPhysicalDevice gpu)
+	{
+		SwapChainSupportDetails result;
+
+		// Capabilities (min/max number of images in swap chain, min/max width and height of images)
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &result.capabilities);
+
+		// Formats: Pixel format, colour space, etc.
+		uint32_t formatCount;
+		vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, nullptr);
+		if (formatCount != 0)
+		{
+			result.formats.resize(formatCount);
+			vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &formatCount, result.formats.data());
+		}
+
+		// Present modes: conditions for "swapping" images to the screen
+		uint32_t presentModeCount;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, nullptr);
+		if (presentModeCount != 0)
+		{
+			result.presentModes.resize(presentModeCount);
+			vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &presentModeCount, result.presentModes.data());
+		}
+
+		return result;
+	}
+
+	VkSurfaceFormatKHR Window::SelectSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
+	{
+		// Pick SRGB if we can have it, otherwise we'll just go with whatever is the first thing available.
+		for (const auto& availableFormat : availableFormats)
+			if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+				return availableFormat;
+
+		return availableFormats[0];
+	}
+
+	VkPresentModeKHR Window::SelectSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
+	{
+		/**
+			VK_PRESENT_MODE_IMMEDIATE_KHR
+			Images submitted by your application are transferred to the screen right away, which may result in tearing.
+			
+			VK_PRESENT_MODE_FIFO_KHR
+			The swap chain is a queue where the display takes an image from the front of the queue when the display is refreshed and the program inserts rendered images at the back of the queue. 
+			If the queue is full then the program has to wait. This is most similar to vertical sync as found in modern games.
+			The moment that the display is refreshed is known as "vertical blank".
+			***This is the only mode guaranteed to be available***
+			
+			VK_PRESENT_MODE_FIFO_RELAXED_KHR
+			This mode only differs from the previous one if the application is late and the queue was empty at the last vertical blank. 
+			Instead of waiting for the next vertical blank, the image is transferred right away when it finally arrives. This may result in visible tearing.
+			
+			VK_PRESENT_MODE_MAILBOX_KHR
+			This is another variation of the second mode. 
+			Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. 
+			This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. 
+			This is commonly known as "triple buffering", although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
+
+			TODO: investigate device energy impact between modes.
+		*/
+
+		// Pick mailbox if its available, otherwise revert to FIFO/vsync.
+		for (const auto& availablePresentMode : availablePresentModes)
+			if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+				return availablePresentMode;
+
+		return VK_PRESENT_MODE_FIFO_KHR;
+	}
+
+	VkExtent2D Window::SelectSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities)
+	{
+		// With display scaling (osx retina display, windows scaling), the screen coords and pixel sizes may differ.
+		// Find the actual extent in pixels, and return it.
+		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+			return capabilities.currentExtent;
+		else
+		{
+			int width, height;
+			glfwGetFramebufferSize(handle, &width, &height);
+
+			VkExtent2D actualExtent =
+			{
+				static_cast<uint32_t>(width),
+				static_cast<uint32_t>(height)
+			};
+
+			actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+			actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+			return actualExtent;
+		}
 	}
 }

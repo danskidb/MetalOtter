@@ -77,6 +77,17 @@
 		"algorithm": "cpp",
 		"functional": "cpp",
 		"iterator": "cpp",
-		"utility": "cpp"
-	}
+		"utility": "cpp",
+		"__tree": "cpp",
+		"future": "cpp",
+		"list": "cpp",
+		"map": "cpp",
+		"set": "cpp",
+		"shared_mutex": "cpp",
+		"unordered_set": "cpp"
+	},
+	"lldb.displayFormat": "auto",
+	"lldb.showDisassembly": "auto",
+	"lldb.dereferencePointers": true,
+	"lldb.consoleMode": "commands"
 }

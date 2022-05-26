@@ -9,7 +9,8 @@
 
 namespace Otter
 {
-	static const std::vector<const char*> requiredPhysicalDeviceExtensions= {
+	static const std::vector<const char*> requiredPhysicalDeviceExtensions =
+	{
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
@@ -21,6 +22,12 @@ namespace Otter
 
 		inline bool isComplete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
 	};
+
+	struct SwapChainSupportDetails {
+		VkSurfaceCapabilitiesKHR capabilities;
+		std::vector<VkSurfaceFormatKHR> formats;
+		std::vector<VkPresentModeKHR> presentModes;
+	};	
 
 	class Window 
 	{
@@ -47,6 +54,11 @@ namespace Otter
 		VkQueue graphicsQueue = VK_NULL_HANDLE;
 		VkQueue presentQueue = VK_NULL_HANDLE;
 
+		VkSwapchainKHR swapChain;
+		std::vector<VkImage> swapChainImages;
+		VkFormat swapChainImageFormat;
+		VkExtent2D swapChainExtent;
+
 		bool InitializeVulkan();
 		void CreateSurface();
 
@@ -56,5 +68,11 @@ namespace Otter
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice gpu);		// Everything in VK works with queues, we want to query what the GPU can do.
 
 		void CreateLogicalDevice();
+
+		void CreateSwapChain();
+		SwapChainSupportDetails FindSwapChainSupport(VkPhysicalDevice gpu);
+		VkSurfaceFormatKHR SelectSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+		VkPresentModeKHR SelectSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+		VkExtent2D SelectSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities); // Return the canvas size in actual pixels, not in screen coordinates.
 	};
 }

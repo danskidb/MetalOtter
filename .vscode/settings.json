@@ -86,7 +86,8 @@
 		"shared_mutex": "cpp",
 		"unordered_set": "cpp",
 		"filesystem": "cpp",
-		"codecvt": "cpp"
+		"codecvt": "cpp",
+		"any": "cpp"
 	},
 	"lldb.displayFormat": "auto",
 	"lldb.showDisassembly": "auto",

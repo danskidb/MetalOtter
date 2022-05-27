@@ -15,11 +15,11 @@ https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 - force aspect ratio
 - entity component system
 - shader cache
+- stop all systems in window destruction.
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/
 - https://snorristurluson.github.io/TextRenderingWithFreetype/
-- https://austinmorlan.com/posts/entity_component_system/
 - https://github.com/nothings/stb
 - https://github.com/assimp/assimp
-- File reader
+- https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator

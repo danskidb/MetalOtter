@@ -6,6 +6,7 @@
 #include <string>
 #include <optional>
 #include <vector>
+#include "Otter/Core/Coordinator.hpp"
 
 namespace Otter
 {
@@ -44,6 +45,7 @@ namespace Otter
 		virtual void OnWindowResized(glm::vec2 size);
 
 	private:
+		Coordinator coordinator;
 		bool initialized = false;
 		std::string title;
 

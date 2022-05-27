@@ -2,6 +2,8 @@
 #include "loguru.hpp"
 #include <set>
 #include "Otter/Utilities/ShaderUtilities.hpp"
+#include "Otter/Components/ComponentRegister.hpp"
+#include "Otter/Systems/SystemRegister.hpp"
 
 namespace Otter 
 {
@@ -35,6 +37,9 @@ namespace Otter
 		glfwSetWindowUserPointer(handle, this);
 		glfwSetFramebufferSizeCallback(handle, framebufferResizeCallback);
 
+		ComponentRegister::RegisterComponentsWithCoordinator(&coordinator);
+		SystemRegister::RegisterSystemsWithCoordinator(&coordinator);
+
 		InitializeVulkan();
 		initialized = true;
 	}
@@ -46,6 +51,8 @@ namespace Otter
 			LOG_F(WARNING, "Window \'%s\' was not valid at destruction time.", title.c_str());
 			return;
 		}
+
+		//TODO stop all systems.
 
 		VkResult err = vkDeviceWaitIdle(logicalDevice);
 		check_vk_result(err);

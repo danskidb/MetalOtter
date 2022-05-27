@@ -113,7 +113,7 @@ namespace Otter
 			/* .generalConstantMatrixVectorIndexing = */ 1,
     }};
 
-	bool ShaderUtilities::LoadShader(std::string path, std::vector<uint32_t>& result)
+	bool ShaderUtilities::LoadShaderCode(std::string path, std::vector<uint32_t>& result)
 	{
 		std::filesystem::path fullPath(path);
 		fullPath = std::filesystem::absolute(fullPath);
@@ -139,15 +139,36 @@ namespace Otter
 		return true;
 	}
 
+	VkShaderModule ShaderUtilities::LoadShaderModule(std::string path, VkDevice logicalDevice)
+	{
+		std::vector<uint32_t> shaderCode;
+		bool result = ShaderUtilities::LoadShaderCode(path, shaderCode);
+		if(!result)
+			return VK_NULL_HANDLE;
+
+		VkShaderModuleCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = shaderCode.size() * sizeof(uint32_t);
+		createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
+
+		VkShaderModule shaderModule;
+		if (vkCreateShaderModule(logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+		{
+			LOG_F(ERROR, "Failed to create shader module for %s", path.c_str());
+			return VK_NULL_HANDLE;
+		}
+		return shaderModule;
+	}
+
 	std::vector<uint32_t> ShaderUtilities::CompileShaderToSPIRV_Vulkan(const glslang_stage_t stage, const char* shaderSource, const char* fileName)
 	{
 		const glslang_input_t input = {
 			.language = GLSLANG_SOURCE_GLSL,
 			.stage = stage,
 			.client = GLSLANG_CLIENT_VULKAN,
-			.client_version = GLSLANG_TARGET_VULKAN_1_2,
+			.client_version = GLSLANG_TARGET_VULKAN_1_3,
 			.target_language = GLSLANG_TARGET_SPV,
-			.target_language_version = GLSLANG_TARGET_SPV_1_5,
+			.target_language_version = GLSLANG_TARGET_SPV_1_3,
 			.code = shaderSource,
 			.default_version = 100,
 			.default_profile = GLSLANG_NO_PROFILE,

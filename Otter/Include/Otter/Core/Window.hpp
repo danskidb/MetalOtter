@@ -60,6 +60,11 @@ namespace Otter
 		VkExtent2D swapChainExtent;
 		std::vector<VkImageView> swapChainImageViews;
 
+		VkPipelineLayout pipelineLayout;
+		VkRenderPass renderPass;
+		VkPipeline graphicsPipeline;
+
+
 		bool InitializeVulkan();
 		void CreateSurface();
 
@@ -77,6 +82,7 @@ namespace Otter
 		VkExtent2D SelectSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities); // Return the canvas size in actual pixels, not in screen coordinates.
 		void CreateImageViews();
 
+		void CreateRenderPass();
 		void CreateGraphicsPipeline();
 	};
 }

@@ -9,6 +9,7 @@
 
 namespace Otter
 {
+	static const int MAX_FRAMES_IN_FLIGHT = 2;
 	static const std::vector<const char*> requiredPhysicalDeviceExtensions =
 	{
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -36,15 +37,17 @@ namespace Otter
 		virtual ~Window();
 
 		inline bool IsValid() { return handle != nullptr && initialized; }
+		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		bool ShouldBeDestroyed();
 
 		virtual void OnTick();
+		virtual void OnWindowResized(glm::vec2 size);
 
 	private:
 		bool initialized = false;
 		std::string title;
 
-		GLFWwindow* handle;
+		GLFWwindow* handle = nullptr;
 		VkInstance vulkanInstance = VK_NULL_HANDLE;
 		VkSurfaceKHR surface = VK_NULL_HANDLE;
 
@@ -53,6 +56,9 @@ namespace Otter
 
 		VkQueue graphicsQueue = VK_NULL_HANDLE;
 		VkQueue presentQueue = VK_NULL_HANDLE;
+
+		VkShaderModule vert = VK_NULL_HANDLE;
+		VkShaderModule frag = VK_NULL_HANDLE;
 
 		VkSwapchainKHR swapChain;
 		std::vector<VkImage> swapChainImages;
@@ -64,13 +70,14 @@ namespace Otter
 		VkRenderPass renderPass;
 		VkPipeline graphicsPipeline;
 		
+		bool framebufferResized;
 		std::vector<VkFramebuffer> swapChainFramebuffers;
 		VkCommandPool commandPool;
-		VkCommandBuffer commandBuffer;
+		std::vector<VkCommandBuffer> commandBuffers;
 
-		VkSemaphore imageAvailableSemaphore;
-		VkSemaphore renderFinishedSemaphore;
-		VkFence inFlightFence;
+		std::vector<VkSemaphore> imageAvailableSemaphores;
+		std::vector<VkSemaphore> renderFinishedSemaphores;
+		std::vector<VkFence> inFlightFences;
 
 		bool InitializeVulkan();
 		void CreateSurface();
@@ -83,6 +90,8 @@ namespace Otter
 		void CreateLogicalDevice();
 
 		void CreateSwapChain();
+		void DestroySwapChain();	// Also destroys things reliant on the swap chain, like the framebuffer.
+		void RecreateSwapChain();
 		SwapChainSupportDetails FindSwapChainSupport(VkPhysicalDevice gpu);
 		VkSurfaceFormatKHR SelectSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 		VkPresentModeKHR SelectSwapChainPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -97,6 +106,7 @@ namespace Otter
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
+		uint32_t currentFrame = 0;
 		void CreateSyncObjects();
 		void DrawFrame();
 	};

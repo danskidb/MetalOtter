@@ -16,15 +16,25 @@ namespace Otter
 			abort();
 	}
 
+	static void framebufferResizeCallback(GLFWwindow* handle, int width, int height)
+	{
+		auto window = reinterpret_cast<Otter::Window*>(glfwGetWindowUserPointer(handle));
+		window->InvalidateFramebuffer();
+	}
+
 	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
 	{
 		this->vulkanInstance = vulkanInstance;
 		this->title = title;
+		currentFrame = 0;
 		
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
 		LOG_F(INFO, "Initializing new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
 		
+		glfwSetWindowUserPointer(handle, this);
+		glfwSetFramebufferSizeCallback(handle, framebufferResizeCallback);
+
 		InitializeVulkan();
 		initialized = true;
 	}
@@ -40,21 +50,18 @@ namespace Otter
 		VkResult err = vkDeviceWaitIdle(logicalDevice);
 		check_vk_result(err);
 
-		vkDestroySemaphore(logicalDevice, imageAvailableSemaphore, nullptr);
-    	vkDestroySemaphore(logicalDevice, renderFinishedSemaphore, nullptr);
-    	vkDestroyFence(logicalDevice, inFlightFence, nullptr);
+		DestroySwapChain();
+
+		vkDestroyShaderModule(logicalDevice, vert, nullptr);
+    	vkDestroyShaderModule(logicalDevice, frag, nullptr);
+
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			vkDestroySemaphore(logicalDevice, imageAvailableSemaphores[i], nullptr);
+			vkDestroySemaphore(logicalDevice, renderFinishedSemaphores[i], nullptr);
+			vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
+		}
 		vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
-
-		for (auto framebuffer : swapChainFramebuffers)
-        	vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
-
-		for (auto imageView : swapChainImageViews)
-			vkDestroyImageView(logicalDevice, imageView, nullptr);
-
-		vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
-		vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
-		vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
-		vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
 		vkDestroyDevice(logicalDevice, nullptr);
 		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
 		glfwDestroyWindow(handle);
@@ -78,11 +85,21 @@ namespace Otter
 		DrawFrame();
 	}
 
+	void Window::OnWindowResized(glm::vec2 size)
+	{
+		LOG_F(INFO, "Window %s was resized to %gx%g", title.c_str(), size.x, size.y);
+	}
+
 	bool Window::InitializeVulkan()
 	{
 		CreateSurface();
 		SelectPhysicalDevice();
 		CreateLogicalDevice();
+
+		// Load shader modules
+		vert = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.vert", logicalDevice);
+		frag = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.frag", logicalDevice);
+
 		CreateSwapChain();
 		CreateImageViews();
 		CreateRenderPass();
@@ -305,6 +322,42 @@ namespace Otter
 		swapChainExtent = extent;
 	}
 
+	void Window::DestroySwapChain()
+	{
+		for (auto framebuffer : swapChainFramebuffers)
+        	vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+
+		for (auto imageView : swapChainImageViews)
+			vkDestroyImageView(logicalDevice, imageView, nullptr);
+
+		vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+		vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
+		vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+		vkDestroySwapchainKHR(logicalDevice, swapChain, nullptr);
+	}
+
+	void Window::RecreateSwapChain()
+	{
+		int width = 0, height = 0;
+		glfwGetFramebufferSize(handle, &width, &height);
+		while (width == 0 || height == 0) {
+			glfwGetFramebufferSize(handle, &width, &height);
+			glfwWaitEvents();
+		}
+
+		vkDeviceWaitIdle(logicalDevice);
+		DestroySwapChain();
+
+		CreateSwapChain();
+		CreateImageViews();
+		CreateRenderPass();
+		CreateGraphicsPipeline();
+		CreateFrameBuffers();
+
+		framebufferResized = false;
+		OnWindowResized({width, height});
+	}
+
 	SwapChainSupportDetails Window::FindSwapChainSupport(VkPhysicalDevice gpu)
 	{
 		SwapChainSupportDetails result;
@@ -468,10 +521,6 @@ namespace Otter
 
 	void Window::CreateGraphicsPipeline()
 	{
-		// Load shader modules
-		VkShaderModule vert = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.vert", logicalDevice);
-		VkShaderModule frag = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.frag", logicalDevice);
-
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -607,10 +656,6 @@ namespace Otter
 
 		result = vkCreateGraphicsPipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
 		check_vk_result(result);
-
-		// Cleanup.
-		vkDestroyShaderModule(logicalDevice, vert, nullptr);
-    	vkDestroyShaderModule(logicalDevice, frag, nullptr);
 	}
 
 	void Window::CreateFrameBuffers()
@@ -649,13 +694,15 @@ namespace Otter
 
 	void Window::CreateCommandBuffer()
 	{
+		commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.commandPool = commandPool;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = 1;
+		allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-		VkResult result = vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
+		VkResult result = vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data());
 		check_vk_result(result);
 	}
 
@@ -691,6 +738,10 @@ namespace Otter
 
 	void Window::CreateSyncObjects()
 	{
+		imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
 		VkSemaphoreCreateInfo semaphoreInfo{};
     	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -699,40 +750,51 @@ namespace Otter
 		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 		VkResult result;
-		result = vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphore);
-		check_vk_result(result);
-   		result = vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphore);
-		check_vk_result(result);
-    	result = vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFence);
-		check_vk_result(result);
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			result = vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]);
+			check_vk_result(result);
+			result = vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]);
+			check_vk_result(result);
+			result = vkCreateFence(logicalDevice, &fenceInfo, nullptr, &inFlightFences[i]);
+			check_vk_result(result);
+		}
 	}
 
 	void Window::DrawFrame()
 	{
-    	vkWaitForFences(logicalDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-		vkResetFences(logicalDevice, 1, &inFlightFence);
+    	vkWaitForFences(logicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 		uint32_t imageIndex;
-    	vkAcquireNextImageKHR(logicalDevice, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-		vkResetCommandBuffer(commandBuffer, 0);
-		RecordCommandBuffer(commandBuffer, imageIndex);
+    	VkResult result = vkAcquireNextImageKHR(logicalDevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+		{
+			RecreateSwapChain();
+			return;
+		}
+		else if (result != VK_SUCCESS)
+			check_vk_result(result);
+		
+		vkResetFences(logicalDevice, 1, &inFlightFences[currentFrame]);
+		vkResetCommandBuffer(commandBuffers[currentFrame], 0);
+		RecordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-		VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+		VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
 		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
 		submitInfo.pWaitDstStageMask = waitStages;
 		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
 
-		VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+		VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
 
-		VkResult result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence);
+		result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]);
 		check_vk_result(result);
 
 		VkPresentInfoKHR presentInfo{};
@@ -747,6 +809,14 @@ namespace Otter
 		presentInfo.pResults = nullptr; // Optional
 
 		result = vkQueuePresentKHR(presentQueue, &presentInfo);
-		check_vk_result(result);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
+		{
+			RecreateSwapChain();
+			return;
+		}
+		else if (result != VK_SUCCESS)
+			check_vk_result(result);
+
+		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 }

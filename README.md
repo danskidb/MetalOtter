@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Frames_in_flight
+https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 
 ## Goals
 - render texture in both windows separately, one with ImGui
@@ -13,8 +13,8 @@ https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Frames_in_flight
 
 ## Todo
 - force aspect ratio
-- window resize handling
 - entity component system
+- shader cache
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/

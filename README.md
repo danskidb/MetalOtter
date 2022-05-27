@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Introduction
+https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Frames_in_flight
 
 ## Goals
 - render texture in both windows separately, one with ImGui
@@ -23,4 +23,3 @@ https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Introduc
 - https://github.com/nothings/stb
 - https://github.com/assimp/assimp
 - File reader
-- SPIRV generation: https://stackoverflow.com/a/59889751

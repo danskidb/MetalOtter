@@ -63,7 +63,14 @@ namespace Otter
 		VkPipelineLayout pipelineLayout;
 		VkRenderPass renderPass;
 		VkPipeline graphicsPipeline;
+		
+		std::vector<VkFramebuffer> swapChainFramebuffers;
+		VkCommandPool commandPool;
+		VkCommandBuffer commandBuffer;
 
+		VkSemaphore imageAvailableSemaphore;
+		VkSemaphore renderFinishedSemaphore;
+		VkFence inFlightFence;
 
 		bool InitializeVulkan();
 		void CreateSurface();
@@ -84,5 +91,13 @@ namespace Otter
 
 		void CreateRenderPass();
 		void CreateGraphicsPipeline();
+		void CreateFrameBuffers();
+
+		void CreateCommandPool();
+		void CreateCommandBuffer();
+		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+		void CreateSyncObjects();
+		void DrawFrame();
 	};
 }

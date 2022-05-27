@@ -1,6 +1,7 @@
 #include "Otter/Core/Window.hpp"
 #include "loguru.hpp"
 #include <set>
+#include "Otter/Utilities/ShaderUtilities.hpp"
 
 namespace Otter 
 {
@@ -406,6 +407,15 @@ namespace Otter
 
 	void Window::CreateGraphicsPipeline()
 	{
+		LOG_F(INFO, "Start compiling shaders.");
 
+		std::vector<uint32_t> vertexShader;
+		bool result1 = ShaderUtilities::LoadShader("Assets/Shaders/Triangle/Triangle.vert", vertexShader);
+
+		std::vector<uint32_t> fragmentShader;
+		bool result2 = ShaderUtilities::LoadShader("Assets/Shaders/Triangle/Triangle.frag", fragmentShader);
+
+		LOG_F(INFO, "Done compiling shaders.");
+		int i = 0;
 	}
 }

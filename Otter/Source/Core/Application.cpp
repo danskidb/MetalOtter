@@ -3,6 +3,7 @@
 #include <iostream>
 #include <GLFW/glfw3.h>
 #include <loguru.hpp>
+#include "glslang/Include/glslang_c_interface.h"
 
 namespace Otter {
 
@@ -61,6 +62,8 @@ namespace Otter {
 			return;
 		}
 
+		glslang_initialize_process();
+
 		OnStart();
 
 		std::vector<std::shared_ptr<Otter::Window>> windowsToBeDestroyed;
@@ -97,6 +100,7 @@ namespace Otter {
 		windows.clear();
 
 		OnStop();
+		glslang_finalize_process();
 		vkDestroyInstance(vulkanInstance, nullptr);
 		vulkanInstance = nullptr;
 		glfwTerminate();

@@ -15,6 +15,7 @@ add_library(Otter
 	# ${IMGUI_DIR}/imgui_widgets.cpp
 	Source/Core/Application.cpp
 	Source/Core/Window.cpp
+	Source/Utilities/ShaderUtilities.cpp
 )
 target_include_directories(Otter PRIVATE Include)
 target_include_directories(Otter PUBLIC ../Libraries/loguru)
@@ -25,3 +26,4 @@ target_link_libraries(Otter PUBLIC Vulkan::Vulkan)
 target_link_libraries(Otter PUBLIC glm::glm)
 target_link_libraries(Otter PUBLIC glfw)
 target_link_libraries(Otter PUBLIC glslang)
+target_link_libraries(Otter PUBLIC SPIRV)

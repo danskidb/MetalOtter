@@ -15,3 +15,12 @@ https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Introduc
 - force aspect ratio
 - window resize handling
 - entity component system
+
+## Some other resources
+- https://snorristurluson.github.io/TextureAtlas/
+- https://snorristurluson.github.io/TextRenderingWithFreetype/
+- https://austinmorlan.com/posts/entity_component_system/
+- https://github.com/nothings/stb
+- https://github.com/assimp/assimp
+- File reader
+- SPIRV generation: https://stackoverflow.com/a/59889751

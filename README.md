@@ -15,7 +15,6 @@ https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 - force aspect ratio
 - shader cache
 - entity hierarchy
-- Window::OnWindowResized callback from Renderer::RecreateSwapChain end, otherwise it spams. Maybe a lambda?
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/

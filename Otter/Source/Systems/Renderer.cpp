@@ -312,6 +312,7 @@ namespace Otter::Systems
 		CreateFrameBuffers();
 
 		framebufferResized = false;
+		onFramebufferResized({width, height});
 	}
 
 	SwapChainSupportDetails Renderer::FindSwapChainSupport(VkPhysicalDevice gpu)

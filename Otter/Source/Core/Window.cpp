@@ -8,7 +8,6 @@ namespace Otter
 	{
 		auto window = reinterpret_cast<Otter::Window*>(glfwGetWindowUserPointer(handle));
 		window->GetRenderer()->InvalidateFramebuffer();
-		window->OnWindowResized({width, height});
 	}
 
 	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
@@ -33,6 +32,9 @@ namespace Otter
 		}
 		renderer->SetWindowHandle(handle);
 		renderer->SetVulkanInstance(vulkanInstance);
+		renderer->SetFrameBufferResizedCallback([this](glm::vec2 newSize) {
+			OnWindowResized(newSize);
+		});
 		renderer->OnStart();
 		systems.push_back(renderer);
 

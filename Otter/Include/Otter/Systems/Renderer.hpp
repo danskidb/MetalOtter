@@ -2,6 +2,8 @@
 #include "Otter/Core/System.hpp"
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
+#include "glm/vec2.hpp"
+#include <optional>
 
 namespace Otter::Systems
 {
@@ -37,9 +39,11 @@ namespace Otter::Systems
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		inline void SetWindowHandle(GLFWwindow* windowHandle) { this->handle = windowHandle; }
 		inline void SetVulkanInstance(VkInstance vulkanInstance) { this->vulkanInstance = vulkanInstance; }
+		inline void SetFrameBufferResizedCallback(std::function<void(glm::vec2)> onFramebufferResized) { this->onFramebufferResized = onFramebufferResized; }
 
 	private:
 		bool initialized = false;
+		std::function<void(glm::vec2)> onFramebufferResized;
 
 		GLFWwindow* handle = nullptr;
 		VkInstance vulkanInstance = VK_NULL_HANDLE;
@@ -72,7 +76,7 @@ namespace Otter::Systems
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
-
+		uint32_t currentFrame = 0;
 
 		void CreateSurface();
 
@@ -100,7 +104,6 @@ namespace Otter::Systems
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
-		uint32_t currentFrame = 0;
 		void CreateSyncObjects();
 		void DrawFrame();
 	};

@@ -1,8 +1,5 @@
 #pragma once
-
-#include "glm/vec2.hpp"
 #include <string>
-#include <optional>
 #include <vector>
 #include "Otter/Core/Coordinator.hpp"
 #include "Otter/Systems/Renderer.hpp"

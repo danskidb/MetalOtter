@@ -3,6 +3,7 @@
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
 #include "glm/vec2.hpp"
+#include "imgui_impl_vulkan.h"
 #include <optional>
 
 namespace Otter::Systems
@@ -37,13 +38,17 @@ namespace Otter::Systems
 		virtual void OnTick(float deltaTime);
 
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
+		inline void SetImGuiAllowed() { imGuiAllowed = true; }
 		inline void SetWindowHandle(GLFWwindow* windowHandle) { this->handle = windowHandle; }
 		inline void SetVulkanInstance(VkInstance vulkanInstance) { this->vulkanInstance = vulkanInstance; }
 		inline void SetFrameBufferResizedCallback(std::function<void(glm::vec2)> onFramebufferResized) { this->onFramebufferResized = onFramebufferResized; }
+		inline void SetDrawImGuiCallback(std::function<void()> onDrawImGui) { this->onDrawImGui = onDrawImGui; }
 
 	private:
+		bool imGuiAllowed = false;
 		bool initialized = false;
 		std::function<void(glm::vec2)> onFramebufferResized;
+		std::function<void()> onDrawImGui;
 
 		GLFWwindow* handle = nullptr;
 		VkInstance vulkanInstance = VK_NULL_HANDLE;
@@ -64,19 +69,22 @@ namespace Otter::Systems
 		VkExtent2D swapChainExtent;
 		std::vector<VkImageView> swapChainImageViews;
 
-		VkPipelineLayout pipelineLayout;
-		VkRenderPass renderPass;
-		VkPipeline graphicsPipeline;
+		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+		VkRenderPass renderPass = VK_NULL_HANDLE;
+		VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+		VkPipeline graphicsPipeline = VK_NULL_HANDLE;
 		
 		bool framebufferResized;
 		std::vector<VkFramebuffer> swapChainFramebuffers;
-		VkCommandPool commandPool;
+		VkCommandPool commandPool = VK_NULL_HANDLE;
 		std::vector<VkCommandBuffer> commandBuffers;
 
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
 		uint32_t currentFrame = 0;
+		const int minImageCount = 2;
+		int imageCount = 2;
 
 		void CreateSurface();
 
@@ -86,6 +94,7 @@ namespace Otter::Systems
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice gpu);		// Everything in VK works with queues, we want to query what the GPU can do.
 
 		void CreateLogicalDevice();
+		void CreateDescriptorPool();
 
 		void CreateSwapChain();
 		void DestroySwapChain();	// Also destroys things reliant on the swap chain, like the framebuffer.
@@ -106,5 +115,7 @@ namespace Otter::Systems
 
 		void CreateSyncObjects();
 		void DrawFrame();
+
+		void SetupImGui();
 	};
 }

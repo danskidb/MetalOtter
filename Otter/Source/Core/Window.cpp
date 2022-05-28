@@ -10,11 +10,12 @@ namespace Otter
 		window->GetRenderer()->InvalidateFramebuffer();
 	}
 
-	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance)
+	Window::Window(glm::vec2 size, std::string title, VkInstance vulkanInstance, bool imGuiAllowed)
 	{
 		this->vulkanInstance = vulkanInstance;
 		this->title = title;
 		
+		// Setup Window and its callbacks.
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		handle = glfwCreateWindow((int)size.x, (int)size.y, title.c_str(), nullptr, nullptr);
 		LOG_F(INFO, "Initializing new window \'%s\' with size %gx%g", title.c_str(), size.x, size.y);
@@ -22,8 +23,10 @@ namespace Otter
 		glfwSetWindowUserPointer(handle, this);
 		glfwSetFramebufferSizeCallback(handle, framebufferResizeCallback);
 
+		// Set up Components
 		ComponentRegister::RegisterComponentsWithCoordinator(&coordinator);
 
+		// Set up Systems
 		renderer = coordinator.RegisterSystem<Systems::Renderer>();
 		{
 			Signature signature;
@@ -35,9 +38,17 @@ namespace Otter
 		renderer->SetFrameBufferResizedCallback([this](glm::vec2 newSize) {
 			OnWindowResized(newSize);
 		});
+		if(imGuiAllowed)
+		{
+			renderer->SetImGuiAllowed();
+			renderer->SetDrawImGuiCallback([this]() {
+				OnDrawImGui();
+			});
+		}
 		renderer->OnStart();
 		systems.push_back(renderer);
 
+		// Done. Let's go!
 		initialized = true;
 	}
 

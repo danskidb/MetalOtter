@@ -9,7 +9,7 @@ namespace Otter
 	class Window 
 	{
 	public:
-		Window(glm::vec2 size, std::string title, VkInstance vulkanInstance);
+		Window(glm::vec2 size, std::string title, VkInstance vulkanInstance, bool imGuiAllowed);
 		virtual ~Window();
 
 		inline bool IsValid() { return handle != nullptr && initialized; }
@@ -17,18 +17,18 @@ namespace Otter
 		bool ShouldBeDestroyed();
 
 		virtual void OnTick(float deltaTime);
+		virtual void OnDrawImGui() {}
 		virtual void OnWindowResized(glm::vec2 size);
 
 	private:
-		Coordinator coordinator;
-		std::vector<std::shared_ptr<Otter::System>> systems;
-
 		bool initialized = false;
 		std::string title;
 
+		Coordinator coordinator;
+		std::vector<std::shared_ptr<Otter::System>> systems;
+		std::shared_ptr<Systems::Renderer> renderer;
+
 		GLFWwindow* handle;
 		VkInstance vulkanInstance;
-
-		std::shared_ptr<Systems::Renderer> renderer;
 	};
 }

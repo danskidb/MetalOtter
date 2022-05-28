@@ -58,7 +58,7 @@ namespace Otter
 	template<typename T>
 	bool Application::CreateWindow(glm::vec2 size, std::string title)
 	{
-		std::shared_ptr<T> window = std::make_shared<T>(size, title, vulkanInstance);
+		std::shared_ptr<T> window = std::make_shared<T>(size, title, vulkanInstance, windows.size() == 0);
 		if (!window->IsValid())
 			return false;
 

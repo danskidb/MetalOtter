@@ -54,7 +54,7 @@ namespace Otter::Systems
 	};
 
 	const std::vector<Vertex> vertices = {
-		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
 		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
 	};
@@ -144,7 +144,6 @@ namespace Otter::Systems
 		void CreateFrameBuffers();
 
 		void CreateCommandPool();
-		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 		void CreateVertexBuffer();
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);

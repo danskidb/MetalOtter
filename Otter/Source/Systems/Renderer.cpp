@@ -451,7 +451,7 @@ namespace Otter::Systems
 
 		// Pick mailbox if its available, otherwise revert to FIFO/vsync.
 		for (const auto& availablePresentMode : availablePresentModes)
-			if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+			if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR)
 				return availablePresentMode;
 
 		return VK_PRESENT_MODE_FIFO_KHR;
@@ -718,19 +718,6 @@ namespace Otter::Systems
 
 		VkResult result = vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool);
 		check_vk_result(result);
-	}
-
-	uint32_t Renderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
-	{
-		const VkPhysicalDeviceMemoryProperties* memProperties;
-		vmaGetMemoryProperties(allocator, &memProperties);
-		for (uint32_t i = 0; i < memProperties->memoryTypeCount; i++) {
-			if ((typeFilter & (1 << i)) && (memProperties->memoryTypes[i].propertyFlags & properties) == properties) {
-				return i;
-			}
-		}
-
-		throw std::runtime_error("failed to find suitable memory type!");
 	}
 
 	void Renderer::CreateVertexBuffer()

@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
+https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
 
 ## Goals
 - render texture in both windows separately, one with ImGui
@@ -12,6 +12,7 @@ https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 - dedicated server library
 
 ## Todo
+- Staging Buffer
 - force aspect ratio
 - shader cache
 - entity hierarchy

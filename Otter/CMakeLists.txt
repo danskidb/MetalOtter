@@ -15,6 +15,7 @@ add_library(Otter
 	# ${IMGUI_DIR}/imgui_widgets.cpp
 	Source/Core/Application.cpp
 	Source/Core/Window.cpp
+	Source/Systems/Renderer.cpp
 	Source/Systems/TemplateSystem.cpp
 	Source/Utilities/ShaderUtilities.cpp
 )

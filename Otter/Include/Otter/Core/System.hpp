@@ -13,10 +13,5 @@ namespace Otter
 		virtual void OnStart() = 0;
 		virtual void OnStop() = 0;
 		virtual void OnTick(float deltaTime) {};
-
-		inline void SetWindowHandle(GLFWwindow* windowHandle) { this->windowHandle = windowHandle; }
-
-	protected:
-		GLFWwindow* windowHandle;
 	};
 }

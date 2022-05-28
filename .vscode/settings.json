@@ -87,7 +87,8 @@
 		"unordered_set": "cpp",
 		"filesystem": "cpp",
 		"codecvt": "cpp",
-		"any": "cpp"
+		"any": "cpp",
+		"span": "cpp"
 	},
 	"lldb.displayFormat": "auto",
 	"lldb.showDisassembly": "auto",

@@ -14,9 +14,8 @@ https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 ## Todo
 - force aspect ratio
 - shader cache
-- stop all systems in window destruction.
-- move vulkan stuff to a system.
 - entity hierarchy
+- Window::OnWindowResized callback from Renderer::RecreateSwapChain end, otherwise it spams. Maybe a lambda?
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/

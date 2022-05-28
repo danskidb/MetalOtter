@@ -25,9 +25,19 @@ namespace Otter::Systems
 		SelectPhysicalDevice();
 		CreateLogicalDevice();
 
+		// Memory Allocator
+		VmaAllocatorCreateInfo allocatorCreateInfo{};
+		allocatorCreateInfo.flags = 0;
+		allocatorCreateInfo.physicalDevice = physicalDevice;
+		allocatorCreateInfo.device = logicalDevice;
+		allocatorCreateInfo.instance = vulkanInstance;
+		vmaCreateAllocator(&allocatorCreateInfo, &allocator);
+
 		// Load shader modules
-		vert = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.vert", logicalDevice);
-		frag = ShaderUtilities::LoadShaderModule("Assets/Shaders/Triangle/Triangle.frag", logicalDevice);
+		vert = ShaderUtilities::LoadShaderModule("Assets/Shaders/Simple/Simple.vert", logicalDevice);
+		frag = ShaderUtilities::LoadShaderModule("Assets/Shaders/Simple/Simple.frag", logicalDevice);
+		if(vert == VK_NULL_HANDLE || frag == VK_NULL_HANDLE)
+			return;
 
 		CreateDescriptorPool();
 		CreateSwapChain();
@@ -36,6 +46,7 @@ namespace Otter::Systems
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
 		CreateCommandPool();
+		CreateVertexBuffer();
 		CreateCommandBuffer();
 		CreateSyncObjects();
 
@@ -59,6 +70,8 @@ namespace Otter::Systems
 
 		DestroySwapChain();
 
+		vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
+		vmaDestroyAllocator(allocator);
 		vkDestroyShaderModule(logicalDevice, vert, nullptr);
     	vkDestroyShaderModule(logicalDevice, frag, nullptr);
 
@@ -74,7 +87,6 @@ namespace Otter::Systems
 		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
 	}
 
-    bool show_demo_window = true;
 	void Renderer::OnTick(float deltaTime)
 	{
 		if (!initialized)
@@ -552,14 +564,14 @@ namespace Otter::Systems
 		VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
 		// Fixed functions of render pipeline
-		// TODO: Because we're hard coding the vertex data directly in the vertex shader, we'll fill in this structure to specify that there is no vertex data to load for now.
-		// We'll get back to it in the vertex buffer chapter.
+		auto bindingDescription = Vertex::getBindingDescription();
+		auto attributeDescriptions = Vertex::getAttributeDescriptions();
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 		vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexInputInfo.vertexBindingDescriptionCount = 0;
-		vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-		vertexInputInfo.vertexAttributeDescriptionCount = 0;
-		vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+		vertexInputInfo.vertexBindingDescriptionCount = 1;
+		vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+		vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+		vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 		inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -708,6 +720,38 @@ namespace Otter::Systems
 		check_vk_result(result);
 	}
 
+	uint32_t Renderer::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+	{
+		const VkPhysicalDeviceMemoryProperties* memProperties;
+		vmaGetMemoryProperties(allocator, &memProperties);
+		for (uint32_t i = 0; i < memProperties->memoryTypeCount; i++) {
+			if ((typeFilter & (1 << i)) && (memProperties->memoryTypes[i].propertyFlags & properties) == properties) {
+				return i;
+			}
+		}
+
+		throw std::runtime_error("failed to find suitable memory type!");
+	}
+
+	void Renderer::CreateVertexBuffer()
+	{
+		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+		VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &vertexBuffer, &vertexBufferAllocation, nullptr);
+		check_vk_result(result);
+
+		void* data;
+		vmaMapMemory(allocator, vertexBufferAllocation, &data);
+		memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+		vmaUnmapMemory(allocator, vertexBufferAllocation);
+	}
+
 	void Renderer::CreateCommandBuffer()
 	{
 		commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -745,7 +789,11 @@ namespace Otter::Systems
 		vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-    	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+		VkBuffer vertexBuffers[] = {vertexBuffer};
+		VkDeviceSize offsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+		vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 		if(imGuiAllowed)
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 

@@ -24,8 +24,11 @@ target_include_directories(Otter PUBLIC ../Libraries/loguru)
 target_include_directories(Otter PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends ..)
 
 find_package(Vulkan REQUIRED)
-target_link_libraries(Otter PUBLIC Vulkan::Vulkan)
-target_link_libraries(Otter PUBLIC glm::glm)
-target_link_libraries(Otter PUBLIC glfw)
-target_link_libraries(Otter PUBLIC glslang)
-target_link_libraries(Otter PUBLIC SPIRV)
+target_link_libraries(Otter 
+	PUBLIC Vulkan::Vulkan
+	PUBLIC glm::glm
+	PUBLIC glfw
+	PUBLIC glslang
+	PUBLIC SPIRV
+	PUBLIC VulkanMemoryAllocator
+)

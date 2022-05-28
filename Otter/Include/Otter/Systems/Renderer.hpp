@@ -2,8 +2,9 @@
 #include "Otter/Core/System.hpp"
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
-#include "glm/vec2.hpp"
+#include "glm/glm.hpp"
 #include "imgui_impl_vulkan.h"
+#include "vk_mem_alloc.h"
 #include <optional>
 
 namespace Otter::Systems
@@ -28,6 +29,35 @@ namespace Otter::Systems
 		std::vector<VkSurfaceFormatKHR> formats;
 		std::vector<VkPresentModeKHR> presentModes;
 	};	
+
+	struct Vertex {
+		glm::vec2 pos;
+		glm::vec3 color;
+
+		static VkVertexInputBindingDescription getBindingDescription() {
+			VkVertexInputBindingDescription bindingDescription { 0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX };
+			return bindingDescription;
+		}
+
+		static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+			std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+			attributeDescriptions[0].binding = 0;
+			attributeDescriptions[0].location = 0;
+			attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[0].offset = offsetof(Vertex, pos);
+			attributeDescriptions[1].binding = 0;
+			attributeDescriptions[1].location = 1;
+			attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDescriptions[1].offset = offsetof(Vertex, color);
+			return attributeDescriptions;
+		}
+	};
+
+	const std::vector<Vertex> vertices = {
+		{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+	};
 
 	class Event;
 	class Renderer : public System
@@ -79,12 +109,16 @@ namespace Otter::Systems
 		VkCommandPool commandPool = VK_NULL_HANDLE;
 		std::vector<VkCommandBuffer> commandBuffers;
 
+		VmaAllocator allocator = VK_NULL_HANDLE;
+		VkBuffer vertexBuffer = VK_NULL_HANDLE;
+		VmaAllocation vertexBufferAllocation = VK_NULL_HANDLE;
+
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
 		uint32_t currentFrame = 0;
 		const int minImageCount = 2;
-		int imageCount = 2;
+		int imageCount = 2;	// FIXME look at example in imgui where this comes from...
 
 		void CreateSurface();
 
@@ -110,6 +144,8 @@ namespace Otter::Systems
 		void CreateFrameBuffers();
 
 		void CreateCommandPool();
+		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+		void CreateVertexBuffer();
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 

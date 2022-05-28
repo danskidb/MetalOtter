@@ -38,7 +38,7 @@ namespace Otter
 		glfwSetFramebufferSizeCallback(handle, framebufferResizeCallback);
 
 		ComponentRegister::RegisterComponentsWithCoordinator(&coordinator);
-		SystemRegister::RegisterSystemsWithCoordinator(&coordinator);
+		systems = SystemRegister::RegisterSystemsWithCoordinator(&coordinator, handle);
 
 		InitializeVulkan();
 		initialized = true;
@@ -52,7 +52,8 @@ namespace Otter
 			return;
 		}
 
-		//TODO stop all systems.
+		for(auto system : systems)
+			system->OnStop();
 
 		VkResult err = vkDeviceWaitIdle(logicalDevice);
 		check_vk_result(err);
@@ -84,10 +85,13 @@ namespace Otter
 			return glfwWindowShouldClose(handle) != 0;
 	}
 
-	void Window::OnTick()
+	void Window::OnTick(float deltaTime)
 	{
 		if (!IsValid())
 			return;
+
+		for(const auto system : systems)
+			system->OnTick(deltaTime);
 
 		DrawFrame();
 	}

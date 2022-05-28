@@ -48,17 +48,17 @@ namespace Otter
 	// TODO: Add some kind of enforcement/automation that a SetParam type and a GetParam type match
 
 	namespace Events::Window {
-	const EventId QUIT = "Events::Window::QUIT"_hash;
-	const EventId RESIZED = "Events::Window::RESIZED"_hash;
-	const EventId INPUT = "Events::Window::INPUT"_hash;
+		const EventId QUIT = "Events::Window::QUIT"_hash;
+		const EventId RESIZED = "Events::Window::RESIZED"_hash;
+		const EventId INPUT = "Events::Window::INPUT"_hash;
 	}
 
 	namespace Events::Window::Input {
-	const ParamId INPUT = "Events::Window::Input::INPUT"_hash;
+		const ParamId INPUT = "Events::Window::Input::INPUT"_hash;
 	}
 
 	namespace Events::Window::Resized {
-	const ParamId WIDTH = "Events::Window::Resized::WIDTH"_hash;
-	const ParamId HEIGHT = "Events::Window::Resized::HEIGHT"_hash;
+		const ParamId WIDTH = "Events::Window::Resized::WIDTH"_hash;
+		const ParamId HEIGHT = "Events::Window::Resized::HEIGHT"_hash;
 	}
 }

@@ -11,4 +11,7 @@ namespace Otter::Systems
 	{
 	}
 
+	void TemplateSystem::OnTick(float deltaTime)
+	{
+	}
 }

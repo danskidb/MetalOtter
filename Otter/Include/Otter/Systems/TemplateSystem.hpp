@@ -9,5 +9,6 @@ namespace Otter::Systems
 	public:
 		virtual void OnStart();
 		virtual void OnStop();
+		virtual void OnTick(float deltaTime);
 	};
 }

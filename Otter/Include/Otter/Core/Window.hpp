@@ -41,11 +41,13 @@ namespace Otter
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		bool ShouldBeDestroyed();
 
-		virtual void OnTick();
+		virtual void OnTick(float deltaTime);
 		virtual void OnWindowResized(glm::vec2 size);
 
 	private:
 		Coordinator coordinator;
+		std::vector<std::shared_ptr<Otter::System>> systems;
+
 		bool initialized = false;
 		std::string title;
 

@@ -83,7 +83,7 @@ namespace Otter {
 					continue;
 				}
 
-				window->OnTick();
+				window->OnTick(dt);
 			}
 			
 			for(auto window : windowsToBeDestroyed)

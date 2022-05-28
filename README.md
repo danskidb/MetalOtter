@@ -13,9 +13,10 @@ https://vulkan-tutorial.com/Vertex_buffers/Vertex_input_description
 
 ## Todo
 - force aspect ratio
-- entity component system
 - shader cache
 - stop all systems in window destruction.
+- move vulkan stuff to a system.
+- entity hierarchy
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/

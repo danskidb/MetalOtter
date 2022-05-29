@@ -54,9 +54,13 @@ namespace Otter::Systems
 	};
 
 	const std::vector<Vertex> vertices = {
-		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+	};
+	const std::vector<uint16_t> indices = {
+		0, 1, 2, 2, 3, 0
 	};
 
 	class Event;
@@ -112,6 +116,8 @@ namespace Otter::Systems
 		VmaAllocator allocator = VK_NULL_HANDLE;
 		VkBuffer vertexBuffer = VK_NULL_HANDLE;
 		VmaAllocation vertexBufferAllocation = VK_NULL_HANDLE;
+		VkBuffer indexBuffer = VK_NULL_HANDLE;
+		VmaAllocation indexBufferAllocation = VK_NULL_HANDLE;
 
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -143,8 +149,11 @@ namespace Otter::Systems
 		void CreateGraphicsPipeline();
 		void CreateFrameBuffers();
 
-		void CreateCommandPool();
 		void CreateVertexBuffer();
+		void CreateIndexBuffer();
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+		void CreateCommandPool();
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 

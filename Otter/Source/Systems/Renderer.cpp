@@ -47,6 +47,7 @@ namespace Otter::Systems
 		CreateFrameBuffers();
 		CreateCommandPool();
 		CreateVertexBuffer();
+		CreateIndexBuffer();
 		CreateCommandBuffer();
 		CreateSyncObjects();
 
@@ -71,6 +72,7 @@ namespace Otter::Systems
 		DestroySwapChain();
 
 		vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
+		vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
 		vmaDestroyAllocator(allocator);
 		vkDestroyShaderModule(logicalDevice, vert, nullptr);
     	vkDestroyShaderModule(logicalDevice, frag, nullptr);
@@ -707,6 +709,131 @@ namespace Otter::Systems
 		}
 	}
 
+	void Renderer::CreateVertexBuffer()
+	{
+		/*
+			Load the Vertices into GPU memory by means of 
+			RAM -> Staging Buffer -> Vertex Buffer.
+			Reason we use the staging buffer is because the most optimal memory for the GPU is non-accessible by the CPU (VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT).
+			On integrated GPU's this can be ignored as all graphics data does not have to go through PCIe, but we're not handling that here at the moment.
+			More info: https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
+		*/
+		VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+		VkBuffer stagingBuffer = VK_NULL_HANDLE;
+		VmaAllocation stagingBufferAllocation = VK_NULL_HANDLE;
+
+		// Staging Buffer
+		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = bufferSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo allocCreateInfo = {};
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		VmaAllocationInfo allocInfo = {};
+		VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &stagingBuffer, &stagingBufferAllocation, &allocInfo);
+		check_vk_result(result);
+
+		memcpy(allocInfo.pMappedData, vertices.data(), (size_t)bufferInfo.size);
+
+		// Vertex Buffer
+		bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = bufferSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		allocCreateInfo = {};
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+		result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &vertexBuffer, &vertexBufferAllocation, nullptr);
+		check_vk_result(result);
+
+		CopyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+		vmaDestroyBuffer(allocator, stagingBuffer, stagingBufferAllocation);
+	}
+
+	void Renderer::CreateIndexBuffer()
+	{
+		// See CreateVertexBuffer for some more info on how this works.
+
+		VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+		VkBuffer stagingBuffer = VK_NULL_HANDLE;
+		VmaAllocation stagingBufferAllocation = VK_NULL_HANDLE;
+
+		// Staging Buffer
+		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = bufferSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo allocCreateInfo = {};
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		VmaAllocationInfo allocInfo = {};
+		VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &stagingBuffer, &stagingBufferAllocation, &allocInfo);
+		check_vk_result(result);
+
+		memcpy(allocInfo.pMappedData, indices.data(), (size_t)bufferInfo.size);
+
+		// Index Buffer
+		bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = bufferSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		allocCreateInfo = {};
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+		result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &indexBuffer, &indexBufferAllocation, nullptr);
+		check_vk_result(result);
+
+		CopyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+		vmaDestroyBuffer(allocator, stagingBuffer, stagingBufferAllocation);
+	}
+
+	void Renderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+	{
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandPool = commandPool;
+		allocInfo.commandBufferCount = 1;
+
+		VkCommandBuffer commandBuffer;
+		VkResult result = vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
+		check_vk_result(result);
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
+		check_vk_result(result);
+
+		VkBufferCopy copyRegion{};
+		copyRegion.srcOffset = 0; // Optional
+		copyRegion.dstOffset = 0; // Optional
+		copyRegion.size = size;
+		vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+		vkEndCommandBuffer(commandBuffer);
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+
+		result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		check_vk_result(result);
+		result = vkQueueWaitIdle(graphicsQueue);
+		check_vk_result(result);
+
+		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
+	}
+
 	void Renderer::CreateCommandPool()
 	{
 		QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice);
@@ -718,25 +845,6 @@ namespace Otter::Systems
 
 		VkResult result = vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool);
 		check_vk_result(result);
-	}
-
-	void Renderer::CreateVertexBuffer()
-	{
-		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-		bufferInfo.size = sizeof(vertices[0]) * vertices.size();
-		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-		allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-		VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &vertexBuffer, &vertexBufferAllocation, nullptr);
-		check_vk_result(result);
-
-		void* data;
-		vmaMapMemory(allocator, vertexBufferAllocation, &data);
-		memcpy(data, vertices.data(), (size_t)bufferInfo.size);
-		vmaUnmapMemory(allocator, vertexBufferAllocation);
 	}
 
 	void Renderer::CreateCommandBuffer()
@@ -779,8 +887,9 @@ namespace Otter::Systems
 		VkBuffer vertexBuffers[] = {vertexBuffer};
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-		vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 		if(imGuiAllowed)
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 

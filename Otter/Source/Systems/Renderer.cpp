@@ -3,6 +3,7 @@
 #include "loguru.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace Otter::Systems
 {
@@ -20,6 +21,7 @@ namespace Otter::Systems
 	void Renderer::OnStart()
 	{
 		currentFrame = 0;
+		deltaTime = 0;
 
 		CreateSurface();
 		SelectPhysicalDevice();
@@ -39,15 +41,18 @@ namespace Otter::Systems
 		if(vert == VK_NULL_HANDLE || frag == VK_NULL_HANDLE)
 			return;
 
-		CreateDescriptorPool();
 		CreateSwapChain();
 		CreateImageViews();
 		CreateRenderPass();
+		CreateDescriptorSetLayout();
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
 		CreateCommandPool();
 		CreateVertexBuffer();
 		CreateIndexBuffer();
+		CreateUniformBuffers();
+		CreateDescriptorPool();
+		CreateDescriptorSets();
 		CreateCommandBuffer();
 		CreateSyncObjects();
 
@@ -73,7 +78,11 @@ namespace Otter::Systems
 
 		vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
 		vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
+		for(size_t i = 0; i < uniformBufferAllocations.size(); i++)
+			vmaDestroyBuffer(allocator, uniformBuffers[i], uniformBufferAllocations[i]);
+
 		vmaDestroyAllocator(allocator);
+		vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyShaderModule(logicalDevice, vert, nullptr);
     	vkDestroyShaderModule(logicalDevice, frag, nullptr);
 
@@ -84,6 +93,7 @@ namespace Otter::Systems
 			vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
 		}
 		vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
+		vkDestroyDescriptorPool(logicalDevice, imguiDescriptorPool, nullptr);
 		vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 		vkDestroyDevice(logicalDevice, nullptr);
 		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
@@ -93,6 +103,8 @@ namespace Otter::Systems
 	{
 		if (!initialized)
 			return;
+
+		this->deltaTime = deltaTime;
 
 		if (imGuiAllowed)
 		{
@@ -162,7 +174,8 @@ namespace Otter::Systems
 		bool extensionsSupported = HasDeviceExtensionSupport(gpu);
 
 		bool swapChainAdequate = false;
-		if (extensionsSupported) {
+		if (extensionsSupported)
+		{
 			SwapChainSupportDetails swapChainSupport = FindSwapChainSupport(gpu);
 			swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
 		}
@@ -256,32 +269,6 @@ namespace Otter::Systems
 		vkGetDeviceQueue(logicalDevice, indices.presentFamily.value(), 0, &presentQueue);
 	}
 
-	void Renderer::CreateDescriptorPool()
-	{
-		VkDescriptorPoolSize pool_sizes[] =
-        {
-            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-        };
-        VkDescriptorPoolCreateInfo pool_info = {};
-        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
-        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-        pool_info.pPoolSizes = pool_sizes;
-        VkResult result = vkCreateDescriptorPool(logicalDevice, &pool_info, VK_NULL_HANDLE, &descriptorPool);
-        check_vk_result(result);
-	}
-
 	void Renderer::CreateSwapChain()
 	{
 		SwapChainSupportDetails swapChainSupport = FindSwapChainSupport(physicalDevice);
@@ -345,8 +332,10 @@ namespace Otter::Systems
 		swapChainImageFormat = surfaceFormat.format;
 		swapChainExtent = extent;
 
-        int width, height;
-        glfwGetFramebufferSize(handle, &width, &height);
+		quad.model = glm::rotate(glm::mat4(1.0f), 0*glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+		quad.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		quad.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+		quad.proj[1][1] *= -1;
 	}
 
 	void Renderer::DestroySwapChain()
@@ -367,7 +356,8 @@ namespace Otter::Systems
 	{
 		int width = 0, height = 0;
 		glfwGetFramebufferSize(handle, &width, &height);
-		while (width == 0 || height == 0) {
+		while (width == 0 || height == 0)
+		{
 			glfwGetFramebufferSize(handle, &width, &height);
 			glfwWaitEvents();
 		}
@@ -549,6 +539,24 @@ namespace Otter::Systems
 		check_vk_result(result);
 	}
 
+	void Renderer::CreateDescriptorSetLayout()
+	{
+		VkDescriptorSetLayoutBinding uboLayoutBinding{};
+		uboLayoutBinding.binding = 0;
+		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uboLayoutBinding.descriptorCount = 1;
+		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = 1;
+		layoutInfo.pBindings = &uboLayoutBinding;
+
+		VkResult result = vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout);
+		check_vk_result(result);
+	}
+
 	void Renderer::CreateGraphicsPipeline()
 	{
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -608,7 +616,7 @@ namespace Otter::Systems
 		rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 		rasterizer.lineWidth = 1.0f;
 		rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-		rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+		rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 		rasterizer.depthBiasEnable = VK_FALSE;
 		rasterizer.depthBiasConstantFactor = 0.0f; // Optional
 		rasterizer.depthBiasClamp = 0.0f; // Optional
@@ -658,8 +666,8 @@ namespace Otter::Systems
 
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipelineLayoutInfo.setLayoutCount = 0; // Optional
-		pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+		pipelineLayoutInfo.setLayoutCount = 1; // Optional
+		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout; // Optional
 		pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 		pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
@@ -781,7 +789,6 @@ namespace Otter::Systems
 		bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 		bufferInfo.size = bufferSize;
 		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		allocCreateInfo = {};
 		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -792,6 +799,29 @@ namespace Otter::Systems
 		CopyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
 		vmaDestroyBuffer(allocator, stagingBuffer, stagingBufferAllocation);
+	}
+
+	void Renderer::CreateUniformBuffers()
+	{
+		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+		uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		uniformBufferAllocations.resize(MAX_FRAMES_IN_FLIGHT);
+
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+			bufferInfo.size = bufferSize;
+			bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+			bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+			VmaAllocationCreateInfo allocCreateInfo = {};
+			allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+			allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+			allocCreateInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+			VmaAllocationInfo allocInfo = {};
+			VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &uniformBuffers[i], &uniformBufferAllocations[i], &allocInfo);
+			check_vk_result(result);
+		}
 	}
 
 	void Renderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
@@ -832,6 +862,84 @@ namespace Otter::Systems
 		check_vk_result(result);
 
 		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
+	}
+
+	void Renderer::CreateDescriptorPool()
+	{
+		VkDescriptorPoolSize poolSize{};
+		poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+		VkDescriptorPoolCreateInfo poolInfo{};
+		poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		poolInfo.poolSizeCount = 1;
+		poolInfo.pPoolSizes = &poolSize;
+		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+		VkResult result = vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool);
+		check_vk_result(result);
+
+		// IMGUI
+		if (!imGuiAllowed)
+			return;
+
+		VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+            { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+            { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+        };
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+        result = vkCreateDescriptorPool(logicalDevice, &pool_info, VK_NULL_HANDLE, &imguiDescriptorPool);
+        check_vk_result(result);
+	}
+
+	void Renderer::CreateDescriptorSets()
+	{
+		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+		VkDescriptorSetAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		allocInfo.descriptorPool = descriptorPool;
+		allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+		allocInfo.pSetLayouts = layouts.data();
+
+		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+		VkResult result = vkAllocateDescriptorSets(logicalDevice, &allocInfo, descriptorSets.data());
+		check_vk_result(result);
+
+		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+		{
+			VkDescriptorBufferInfo bufferInfo{};
+			bufferInfo.buffer = uniformBuffers[i];
+			bufferInfo.offset = 0;
+			bufferInfo.range = sizeof(UniformBufferObject);
+
+			VkWriteDescriptorSet descriptorWrite{};
+			descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrite.dstSet = descriptorSets[i];
+			descriptorWrite.dstBinding = 0;
+			descriptorWrite.dstArrayElement = 0;
+			descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			descriptorWrite.descriptorCount = 1;
+			descriptorWrite.pBufferInfo = &bufferInfo;
+			descriptorWrite.pImageInfo = nullptr; // Optional
+			descriptorWrite.pTexelBufferView = nullptr; // Optional
+
+			vkUpdateDescriptorSets(logicalDevice, 1, &descriptorWrite, 0, nullptr);
+		}
 	}
 
 	void Renderer::CreateCommandPool()
@@ -889,6 +997,7 @@ namespace Otter::Systems
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 		vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 		if(imGuiAllowed)
 			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -940,6 +1049,7 @@ namespace Otter::Systems
 		vkResetFences(logicalDevice, 1, &inFlightFences[currentFrame]);
 		vkResetCommandBuffer(commandBuffers[currentFrame], 0);
 		RecordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+		UpdateUniformBuffer(currentFrame);
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -982,6 +1092,20 @@ namespace Otter::Systems
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
+	void Renderer::UpdateUniformBuffer(uint32_t currentImage)
+	{
+		/*
+			Using a UBO this way is not the most efficient way to pass frequently changing values to the shader.
+			A more efficient way to pass a small buffer of data to shaders are push constants. We may look at these in a future chapter.
+		*/
+		quad.model = glm::rotate(quad.model, deltaTime*glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+		void* data;
+		vmaMapMemory(allocator, uniformBufferAllocations[currentImage], &data);
+		memcpy(data, &quad, sizeof(quad));
+		vmaUnmapMemory(allocator, uniformBufferAllocations[currentImage]);
+	}
+
 	void Renderer::SetupImGui()
 	{
 		IMGUI_CHECKVERSION();
@@ -1009,7 +1133,7 @@ namespace Otter::Systems
 		init_info.PhysicalDevice = physicalDevice;
 		init_info.Device = logicalDevice;
 		init_info.Queue = graphicsQueue;
-		init_info.DescriptorPool = descriptorPool;
+		init_info.DescriptorPool = imguiDescriptorPool;
 		init_info.Subpass = 0;
 		init_info.MinImageCount = minImageCount;
 		init_info.ImageCount = imageCount;

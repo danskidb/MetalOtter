@@ -53,6 +53,13 @@ namespace Otter::Systems
 		}
 	};
 
+	struct UniformBufferObject {
+		alignas(16) glm::mat4 model;
+		alignas(16) glm::mat4 view;
+		alignas(16) glm::mat4 proj;
+	};
+
+	// Temporary mesh data.
 	const std::vector<Vertex> vertices = {
 		{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
 		{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
@@ -81,6 +88,8 @@ namespace Otter::Systems
 	private:
 		bool imGuiAllowed = false;
 		bool initialized = false;
+		float deltaTime = 0;
+		UniformBufferObject quad{};
 		std::function<void(glm::vec2)> onFramebufferResized;
 		std::function<void()> onDrawImGui;
 
@@ -103,9 +112,12 @@ namespace Otter::Systems
 		VkExtent2D swapChainExtent;
 		std::vector<VkImageView> swapChainImageViews;
 
+		VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 		VkRenderPass renderPass = VK_NULL_HANDLE;
 		VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
+		VkDescriptorPool imguiDescriptorPool = VK_NULL_HANDLE;
+		std::vector<VkDescriptorSet> descriptorSets;
 		VkPipeline graphicsPipeline = VK_NULL_HANDLE;
 		
 		bool framebufferResized;
@@ -118,6 +130,8 @@ namespace Otter::Systems
 		VmaAllocation vertexBufferAllocation = VK_NULL_HANDLE;
 		VkBuffer indexBuffer = VK_NULL_HANDLE;
 		VmaAllocation indexBufferAllocation = VK_NULL_HANDLE;
+		std::vector<VkBuffer> uniformBuffers;
+		std::vector<VmaAllocation> uniformBufferAllocations;
 
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -134,7 +148,6 @@ namespace Otter::Systems
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice gpu);		// Everything in VK works with queues, we want to query what the GPU can do.
 
 		void CreateLogicalDevice();
-		void CreateDescriptorPool();
 
 		void CreateSwapChain();
 		void DestroySwapChain();	// Also destroys things reliant on the swap chain, like the framebuffer.
@@ -146,12 +159,17 @@ namespace Otter::Systems
 		void CreateImageViews();
 
 		void CreateRenderPass();
+		void CreateDescriptorSetLayout();
 		void CreateGraphicsPipeline();
 		void CreateFrameBuffers();
 
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
+		void CreateUniformBuffers();
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+		void CreateDescriptorPool();
+		void CreateDescriptorSets();
 
 		void CreateCommandPool();
 		void CreateCommandBuffer();
@@ -159,6 +177,7 @@ namespace Otter::Systems
 
 		void CreateSyncObjects();
 		void DrawFrame();
+		void UpdateUniformBuffer(uint32_t currentImage);
 
 		void SetupImGui();
 	};

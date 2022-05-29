@@ -12,9 +12,7 @@ https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
 - dedicated server library
 
 ## Todo
-- Staging Buffer
 - force aspect ratio
-- shader cache
 - entity hierarchy
 
 ## Some other resources

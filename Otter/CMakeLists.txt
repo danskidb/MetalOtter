@@ -1,6 +1,5 @@
 add_compile_definitions(GLFW_INCLUDE_VULKAN)
 add_compile_definitions(GLM_FORCE_RADIANS)
-add_compile_definitions(GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 set(IMGUI_DIR ../Libraries/imgui)
 
@@ -17,6 +16,7 @@ add_library(Otter
 	Source/Core/Window.cpp
 	Source/Systems/Renderer.cpp
 	Source/Systems/TemplateSystem.cpp
+	Source/Utilities/MD5.cpp
 	Source/Utilities/ShaderUtilities.cpp
 )
 target_include_directories(Otter PRIVATE Include)

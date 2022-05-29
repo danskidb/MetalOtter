@@ -3,6 +3,7 @@
 #include <loguru.hpp>
 #include <iostream>
 #include "glslang/Public/ShaderLang.h"
+#include "Otter/Utilities/MD5.hpp"
 
 namespace Otter
 {
@@ -117,26 +118,75 @@ namespace Otter
 	{
 		std::filesystem::path fullPath(path);
 		fullPath = std::filesystem::absolute(fullPath);
-		std::ifstream file(fullPath, std::ios::ate | std::ios::binary);
-		if (!file.is_open())
+		std::ifstream glslFileStream(fullPath, std::ios::ate | std::ios::binary);
+		if (!glslFileStream.is_open())
 		{
 			LOG_F(ERROR, "Failed to open file with path %s", fullPath.c_str());
 			return false;
 		}
 
-		size_t fileSize = (size_t) file.tellg();
+		size_t fileSize = (size_t) glslFileStream.tellg();
 		std::vector<char> buffer(fileSize);
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-		file.close();
+		glslFileStream.seekg(0);
+		glslFileStream.read(buffer.data(), fileSize);
+		glslFileStream.close();
 
-		glslang_stage_t shaderLanguage = FindShaderLanguage(fullPath);
-		if(shaderLanguage == glslang_stage_t::GLSLANG_STAGE_COUNT)
-			return false;
+		// Find hash of shader
+		std::string hash = md5(std::string(buffer.begin(), buffer.end())); //.spv
+		std::filesystem::path shaderPath("CompiledShaders/");
+		if(!std::filesystem::exists(shaderPath))
+			std::filesystem::create_directory(shaderPath);
+		shaderPath /= hash += ".spv";
 
-		result = CompileShaderToSPIRV_Vulkan(shaderLanguage, buffer.data(), fullPath.filename().c_str());
-		LOG_F(INFO, "Compiled shader %s", fullPath.filename().c_str());
-		return true;
+		// Compile the shader if it does not yet exist, otherwise, read an existing shader.
+		if(!std::filesystem::exists(shaderPath))
+		{
+			glslang_stage_t shaderLanguage = FindShaderLanguage(fullPath);
+			if(shaderLanguage == glslang_stage_t::GLSLANG_STAGE_COUNT)
+				return false;
+
+			result.clear();
+			result = CompileShaderToSPIRV_Vulkan(shaderLanguage, buffer.data(), fullPath.filename().c_str());
+
+			if(result.size() <= 0)
+				return false;
+
+			LOG_F(INFO, "Compiled shader %s", fullPath.filename().c_str());
+			
+			//Export spir-v
+			std::ofstream out(shaderPath, std::ofstream::binary);
+			for (size_t i = 0; i < result.size(); ++i)
+			{
+				uint32_t a = i*2;
+				out.write(reinterpret_cast<const char *>(&result[i]), sizeof(result[i]));
+			}
+			out.close();
+
+			return true;
+		}
+		else
+		{
+			std::ifstream spirvFileStream(shaderPath, std::ios::ate | std::ios::binary);
+			if (!spirvFileStream.is_open())
+			{
+				LOG_F(ERROR, "Failed to open file with path %s", fullPath.c_str());
+				return false;
+			}
+			
+			fileSize = (size_t) glslFileStream.tellg();
+			spirvFileStream.seekg(0);
+
+			while(!spirvFileStream.eof())
+			{
+				uint32_t val;
+    			spirvFileStream.read(reinterpret_cast<char*>(&val), sizeof val);
+				result.push_back(val);
+			}
+			result.erase(result.end()-1);	// 🤔
+			spirvFileStream.close();
+
+			return true;
+		}
 	}
 
 	VkShaderModule ShaderUtilities::LoadShaderModule(std::string path, VkDevice logicalDevice)
@@ -170,7 +220,7 @@ namespace Otter
 			.target_language = GLSLANG_TARGET_SPV,
 			.target_language_version = GLSLANG_TARGET_SPV_1_3,
 			.code = shaderSource,
-			.default_version = 100,
+			.default_version = 450,
 			.default_profile = GLSLANG_NO_PROFILE,
 			.force_default_version_and_profile = false,
 			.forward_compatible = false,

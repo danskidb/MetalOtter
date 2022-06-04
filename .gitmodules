@@ -20,3 +20,7 @@
 [submodule "Libraries/VulkanMemoryAllocator"]
 	path = Libraries/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "Libraries/stb"]
+	path = Libraries/stb
+	url = https://github.com/nothings/stb.git
+	branch = master

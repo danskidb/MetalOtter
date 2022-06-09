@@ -1,9 +1,10 @@
-cmake_minimum_required(VERSION 3.5)
-project(OtterApp LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.9)
+project(OtterApp)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+enable_language(CXX)
 
 find_package(Git REQUIRED QUIET)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")

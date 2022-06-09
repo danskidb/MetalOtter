@@ -20,6 +20,7 @@ add_library(Otter
 	Source/Utilities/ShaderUtilities.cpp
 )
 target_include_directories(Otter PRIVATE Include)
+target_include_directories(Otter PUBLIC ../Libraries/stb)
 target_include_directories(Otter PUBLIC ../Libraries/loguru)
 target_include_directories(Otter PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends ..)
 

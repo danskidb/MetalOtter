@@ -5,6 +5,9 @@
 #include <loguru.hpp>
 #include "glslang/Include/glslang_c_interface.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 namespace Otter {
 
 	static void glfw_error_callback(int error, const char* description)

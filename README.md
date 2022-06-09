@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
+https://vulkan-tutorial.com/Texture_mapping/Images
 
 ## Goals
 - render texture in both windows separately, one with ImGui
@@ -18,6 +18,5 @@ https://vulkan-tutorial.com/Vertex_buffers/Staging_buffer
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/
 - https://snorristurluson.github.io/TextRenderingWithFreetype/
-- https://github.com/nothings/stb
 - https://github.com/assimp/assimp
-- https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+- https://github.com/SaschaWillems/Vulkan

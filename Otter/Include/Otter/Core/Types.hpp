@@ -2,6 +2,7 @@
 
 #include <bitset>
 #include <cstdint>
+#include <glm/glm.hpp>
 
 namespace Otter
 {
@@ -43,6 +44,8 @@ namespace Otter
 
 	#define METHOD_LISTENER(EventType, Listener) EventType, std::bind(&Listener, this, std::placeholders::_1)
 	#define FUNCTION_LISTENER(EventType, Listener) EventType, std::bind(&Listener, std::placeholders::_1)
+
+	typedef glm::vec<2, int, glm::defaultp> Vec2D;
 
 	// TODO: Make these easier to define and use (macro?)
 	// TODO: Add some kind of enforcement/automation that a SetParam type and a GetParam type match

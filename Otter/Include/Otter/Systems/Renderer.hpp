@@ -1,5 +1,6 @@
 #pragma once
 #include "Otter/Core/System.hpp"
+#include "Otter/Core/Types.hpp"
 #include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
 #include "glm/glm.hpp"
@@ -166,7 +167,9 @@ namespace Otter::Systems
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateUniformBuffers();
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);	// Record and execute a command buffer to copy from a staging buffer to destination.
+		VkCommandBuffer BeginSingleTimeCommands();
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 
 		void CreateDescriptorPool();
 		void CreateDescriptorSets();

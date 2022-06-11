@@ -12,7 +12,12 @@ https://vulkan-tutorial.com/Texture_mapping/Images
 - dedicated server library
 
 ## Todo
-- force aspect ratio
+- Finish SDL2 migration: https://gist.github.com/YukiSnowy/dc31f47448ac61dd6aedee18b5d53858 
+ * Application::GetRequiredExtensions / move vulkan instances to window it can grab required extensions
+ * Event handling should also be handled with this partially
+ * Window Resizing
+ * Surface creation
+- iOS and Android compatibility
 - entity hierarchy
 
 ## Some other resources

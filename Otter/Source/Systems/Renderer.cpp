@@ -2,7 +2,7 @@
 #include "Otter/Utilities/ShaderUtilities.hpp"
 #include "loguru.hpp"
 #include "imgui.h"
-#include "imgui_impl_glfw.h"
+#include "imgui_impl_sdl.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Otter::Systems
@@ -70,7 +70,7 @@ namespace Otter::Systems
 		if (imGuiAllowed)
 		{
 			ImGui_ImplVulkan_Shutdown();
-			ImGui_ImplGlfw_Shutdown();
+			ImGui_ImplSDL2_Shutdown();
 			ImGui::DestroyContext();
 		}
 
@@ -109,7 +109,7 @@ namespace Otter::Systems
 		if (imGuiAllowed)
 		{
 			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
+			ImGui_ImplSDL2_NewFrame();
 			ImGui::NewFrame();
 
 			if(onDrawImGui)
@@ -123,8 +123,8 @@ namespace Otter::Systems
 
 	void Renderer::CreateSurface()
 	{
-    	VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
-		check_vk_result(err);
+    	// VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
+		// check_vk_result(err);
 	}
 
 	void Renderer::SelectPhysicalDevice()
@@ -355,12 +355,12 @@ namespace Otter::Systems
 	void Renderer::RecreateSwapChain()
 	{
 		int width = 0, height = 0;
-		glfwGetFramebufferSize(handle, &width, &height);
-		while (width == 0 || height == 0)
-		{
-			glfwGetFramebufferSize(handle, &width, &height);
-			glfwWaitEvents();
-		}
+		// glfwGetFramebufferSize(handle, &width, &height);
+		// while (width == 0 || height == 0)
+		// {
+		// 	glfwGetFramebufferSize(handle, &width, &height);
+		// 	glfwWaitEvents();
+		// }
 
 		vkDeviceWaitIdle(logicalDevice);
 		DestroySwapChain();
@@ -458,7 +458,7 @@ namespace Otter::Systems
 		else
 		{
 			int width, height;
-			glfwGetFramebufferSize(handle, &width, &height);
+			//glfwGetFramebufferSize(handle, &width, &height);
 
 			VkExtent2D actualExtent =
 			{
@@ -1136,10 +1136,10 @@ namespace Otter::Systems
 		}
 
 		int w, h;
-		glfwGetFramebufferSize(handle, &w, &h);
+		//glfwGetFramebufferSize(handle, &w, &h);
 
 		// Setup Platform/Renderer backends
-		ImGui_ImplGlfw_InitForVulkan(handle, true);
+		ImGui_ImplSDL2_InitForVulkan(handle);
 		ImGui_ImplVulkan_InitInfo init_info = {};
 		init_info.Instance = vulkanInstance;
 		init_info.PhysicalDevice = physicalDevice;

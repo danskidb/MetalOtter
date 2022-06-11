@@ -1,8 +1,9 @@
 #include "Otter/Core/Application.hpp"
 #include <chrono>
 #include <iostream>
-#include <GLFW/glfw3.h>
 #include <loguru.hpp>
+#include "SDL.h"
+#include "SDL_vulkan.h"
 #include "glslang/Include/glslang_c_interface.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -10,10 +11,10 @@
 
 namespace Otter {
 
-	static void glfw_error_callback(int error, const char* description)
-	{
-		LOG_F(ERROR, "Glfw Error %d: %s", error, description);
-	}
+	// static void glfw_error_callback(int error, const char* description)
+	// {
+	// 	LOG_F(ERROR, "Glfw Error %d: %s", error, description);
+	// }
 
 	static void check_vk_result(VkResult err)
 	{
@@ -46,18 +47,7 @@ namespace Otter {
 		loguru::init(argc, argv);
 		loguru::add_file("otter.log", loguru::FileMode::Truncate, loguru::Verbosity_MAX);
 
-		glfwSetErrorCallback(glfw_error_callback);
-		if(!glfwInit())
-		{
-			LOG_F(ERROR, "Failed to initialize GLFW");
-			return;
-		}
-
-		if(!glfwVulkanSupported())
-		{
-			LOG_F(ERROR, "GLFW: Vulkan is not supported");
-			return;
-		}
+		SDL_Init(SDL_INIT_EVERYTHING);
 
 		if(!CreateVulkanInstance())
 		{
@@ -75,7 +65,16 @@ namespace Otter {
 		{
 			auto startTime = std::chrono::high_resolution_clock::now();
 
-			glfwPollEvents();
+			SDL_Event event;
+			while (SDL_PollEvent(&event))
+			{
+				if(event.type == SDL_QUIT)
+					for(auto window : windows)
+						windowsToBeDestroyed.push_back(window);
+				
+
+				//...
+			}
 			OnTick(dt);
 
 			for(auto window : windows)
@@ -106,7 +105,7 @@ namespace Otter {
 		glslang_finalize_process();
 		vkDestroyInstance(vulkanInstance, nullptr);
 		vulkanInstance = nullptr;
-		glfwTerminate();
+		SDL_Quit();
 	}
 
 	bool Application::DestroyWindow(std::shared_ptr<Otter::Window> window)
@@ -211,17 +210,13 @@ namespace Otter {
 
 	std::vector<const char*> Application::GetRequiredExtensions()
 	{
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+		//TODO move to Window so we have 2 vulkan instances and get the correct result
+		unsigned int extensionCount = 0;
+		SDL_Vulkan_GetInstanceExtensions(nullptr, &extensionCount, nullptr);
+		std::vector<const char *> extensionNames(extensionCount);
+		SDL_Vulkan_GetInstanceExtensions(nullptr, &extensionCount, extensionNames.data());
 
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-        if (enableValidationLayers) {
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
-
-        return extensions;
+        return extensionNames;
 	}
 
 	void Application::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)

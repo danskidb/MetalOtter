@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include "SDL.h"
 #include "Otter/Core/Coordinator.hpp"
 #include "Otter/Systems/Renderer.hpp"
 
@@ -28,7 +29,7 @@ namespace Otter
 		std::vector<std::shared_ptr<Otter::System>> systems;
 		std::shared_ptr<Systems::Renderer> renderer;
 
-		GLFWwindow* handle;
+		SDL_Window* handle;
 		VkInstance vulkanInstance;
 	};
 }

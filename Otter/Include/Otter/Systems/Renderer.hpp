@@ -1,8 +1,8 @@
 #pragma once
 #include "Otter/Core/System.hpp"
 #include "Otter/Core/Types.hpp"
-#include "GLFW/glfw3.h"
 #include "vulkan/vulkan.hpp"
+#include "SDL.h"
 #include "glm/glm.hpp"
 #include "imgui_impl_vulkan.h"
 #include "vk_mem_alloc.h"
@@ -81,7 +81,7 @@ namespace Otter::Systems
 
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		inline void SetImGuiAllowed() { imGuiAllowed = true; }
-		inline void SetWindowHandle(GLFWwindow* windowHandle) { this->handle = windowHandle; }
+		inline void SetWindowHandle(SDL_Window* windowHandle) { this->handle = windowHandle; }
 		inline void SetVulkanInstance(VkInstance vulkanInstance) { this->vulkanInstance = vulkanInstance; }
 		inline void SetFrameBufferResizedCallback(std::function<void(glm::vec2)> onFramebufferResized) { this->onFramebufferResized = onFramebufferResized; }
 		inline void SetDrawImGuiCallback(std::function<void()> onDrawImGui) { this->onDrawImGui = onDrawImGui; }
@@ -94,7 +94,7 @@ namespace Otter::Systems
 		std::function<void(glm::vec2)> onFramebufferResized;
 		std::function<void()> onDrawImGui;
 
-		GLFWwindow* handle = nullptr;
+		SDL_Window* handle = nullptr;
 		VkInstance vulkanInstance = VK_NULL_HANDLE;
 		VkSurfaceKHR surface = VK_NULL_HANDLE;
 

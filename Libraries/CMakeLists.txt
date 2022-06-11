@@ -1,4 +1,4 @@
-add_subdirectory(glfw)
+add_subdirectory(SDL)
 add_subdirectory(glm)
 add_subdirectory(glslang)
 add_subdirectory(VulkanMemoryAllocator)

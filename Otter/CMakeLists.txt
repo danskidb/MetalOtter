@@ -1,4 +1,3 @@
-#add_compile_definitions(GLFW_INCLUDE_VULKAN)
 add_compile_definitions(GLM_FORCE_RADIANS)
 
 set(IMGUI_DIR ../Libraries/imgui)
@@ -22,7 +21,6 @@ add_library(Otter
 target_include_directories(Otter PRIVATE Include)
 target_include_directories(Otter PUBLIC ../Libraries/stb)
 target_include_directories(Otter PUBLIC ../Libraries/loguru)
-#target_include_directories(Otter PUBLIC ../Libraries/SDL/include)
 target_include_directories(Otter PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends ..)
 
 find_package(Vulkan REQUIRED)

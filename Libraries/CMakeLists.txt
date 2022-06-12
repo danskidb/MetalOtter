@@ -1,4 +1,6 @@
 add_subdirectory(SDL)
 add_subdirectory(glm)
+set(ENABLE_SPVREMAPPER OFF)
+set(ENABLE_GLSLANG_BINARIES OFF)
 add_subdirectory(glslang)
 add_subdirectory(VulkanMemoryAllocator)

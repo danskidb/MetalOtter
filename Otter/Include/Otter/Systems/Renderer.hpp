@@ -10,6 +10,16 @@
 
 namespace Otter::Systems
 {
+	static const std::vector<const char*> requiredValidationLayers = {
+		"VK_LAYER_KHRONOS_validation"
+	};	
+
+	#ifdef NDEBUG
+	const bool enableValidationLayers = false;
+	#else
+	const bool enableValidationLayers = true;
+	#endif
+
 	static const int MAX_FRAMES_IN_FLIGHT = 2;
 	static const std::vector<const char*> requiredPhysicalDeviceExtensions =
 	{
@@ -82,7 +92,6 @@ namespace Otter::Systems
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		inline void SetImGuiAllowed() { imGuiAllowed = true; }
 		inline void SetWindowHandle(SDL_Window* windowHandle) { this->handle = windowHandle; }
-		inline void SetVulkanInstance(VkInstance vulkanInstance) { this->vulkanInstance = vulkanInstance; }
 		inline void SetFrameBufferResizedCallback(std::function<void(glm::vec2)> onFramebufferResized) { this->onFramebufferResized = onFramebufferResized; }
 		inline void SetDrawImGuiCallback(std::function<void()> onDrawImGui) { this->onDrawImGui = onDrawImGui; }
 
@@ -96,6 +105,7 @@ namespace Otter::Systems
 
 		SDL_Window* handle = nullptr;
 		VkInstance vulkanInstance = VK_NULL_HANDLE;
+		VkDebugUtilsMessengerEXT debugMessenger;
 		VkSurfaceKHR surface = VK_NULL_HANDLE;
 
 		VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -140,6 +150,15 @@ namespace Otter::Systems
 		uint32_t currentFrame = 0;
 		const int minImageCount = 2;
 		int imageCount = 2;	// FIXME look at example in imgui where this comes from...
+
+
+		bool CreateVulkanInstance();
+		VkResult CreateDebugUtilsMessengerEXT(VkInstance vulkanInstance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger);
+		void DestroyDebugUtilsMessengerEXT(VkInstance vulkanInstance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator);
+		bool CheckValidationLayerSupport();
+		std::vector<const char*> GetRequiredExtensions();
+		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+		void SetupDebugMessenger();
 
 		void CreateSurface();
 

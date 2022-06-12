@@ -3,6 +3,7 @@
 #include "loguru.hpp"
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
+#include "SDL_vulkan.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Otter::Systems
@@ -18,10 +19,22 @@ namespace Otter::Systems
 			abort();
 	}
 
+	static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+	{
+		LOG_F(ERROR, "[vulkan] validation layer: %s", pCallbackData->pMessage);
+        return VK_FALSE;
+    }
+
 	void Renderer::OnStart()
 	{
 		currentFrame = 0;
 		deltaTime = 0;
+
+		if(!CreateVulkanInstance())
+		{
+			LOG_F(ERROR, "Failed to create vulkan instance");
+			return;
+		}
 
 		CreateSurface();
 		SelectPhysicalDevice();
@@ -97,6 +110,9 @@ namespace Otter::Systems
 		vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 		vkDestroyDevice(logicalDevice, nullptr);
 		vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
+
+		vkDestroyInstance(vulkanInstance, nullptr);
+		vulkanInstance = nullptr;
 	}
 
 	void Renderer::OnTick(float deltaTime)
@@ -121,10 +137,128 @@ namespace Otter::Systems
 		DrawFrame();
 	}
 
+	bool Renderer::CreateVulkanInstance()
+	{
+		//AppInfo
+		VkApplicationInfo appInfo{};
+		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		appInfo.pApplicationName = SDL_GetWindowTitle(handle);
+		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.pEngineName = "Otter";
+		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+		appInfo.apiVersion = VK_API_VERSION_1_3;
+
+		//CreateInfo
+		VkInstanceCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		createInfo.pApplicationInfo = &appInfo;
+
+        auto extensions = GetRequiredExtensions();
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
+
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+        if (enableValidationLayers) {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(requiredValidationLayers.size());
+            createInfo.ppEnabledLayerNames = requiredValidationLayers.data();
+
+            PopulateDebugMessengerCreateInfo(debugCreateInfo);
+            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        } else {
+            createInfo.enabledLayerCount = 0;
+
+            createInfo.pNext = nullptr;
+        }
+
+		VkResult result = vkCreateInstance(&createInfo, nullptr, &vulkanInstance);
+		check_vk_result(result);
+
+		return result == VK_SUCCESS;
+	}
+
+	VkResult Renderer::CreateDebugUtilsMessengerEXT(VkInstance vulkanInstance, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* allocator, VkDebugUtilsMessengerEXT* debugMessenger)
+	{
+		auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(vulkanInstance, "vkCreateDebugUtilsMessengerEXT");
+		if (func != nullptr) {
+			return func(vulkanInstance, createInfo, allocator, debugMessenger);
+		} else {
+			return VK_ERROR_EXTENSION_NOT_PRESENT;
+		}
+	}
+
+	void Renderer::DestroyDebugUtilsMessengerEXT(VkInstance vulkanInstance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* allocator)
+	{
+		auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(vulkanInstance, "vkDestroyDebugUtilsMessengerEXT");
+		if (func != nullptr) {
+			func(vulkanInstance, debugMessenger, allocator);
+		}
+	}
+
+	bool Renderer::CheckValidationLayerSupport()
+	{
+        uint32_t layerCount;
+        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+        std::vector<VkLayerProperties> availableLayers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+        for (const char* layerName : requiredValidationLayers) {
+            bool layerFound = false;
+
+            for (const auto& layerProperties : availableLayers) {
+                if (strcmp(layerName, layerProperties.layerName) == 0) {
+                    layerFound = true;
+                    break;
+                }
+            }
+
+            if (!layerFound) {
+                return false;
+            }
+        }
+
+        return true;
+	}
+
+	std::vector<const char*> Renderer::GetRequiredExtensions()
+	{
+		//TODO move to Window so we have 2 vulkan instances and get the correct result
+		unsigned int extensionCount = 0;
+		SDL_Vulkan_GetInstanceExtensions(handle, &extensionCount, nullptr);
+		std::vector<const char *> extensionNames(extensionCount);
+		SDL_Vulkan_GetInstanceExtensions(handle, &extensionCount, extensionNames.data());
+
+        return extensionNames;
+	}
+
+	void Renderer::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+	{
+        createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        createInfo.pfnUserCallback = vkDebugCallback;
+	}
+
+	void Renderer::SetupDebugMessenger()
+	{
+        if (!enableValidationLayers)
+			return;
+
+        VkDebugUtilsMessengerCreateInfoEXT createInfo;
+        PopulateDebugMessengerCreateInfo(createInfo);
+
+        VkResult result = CreateDebugUtilsMessengerEXT(vulkanInstance, &createInfo, nullptr, &debugMessenger);
+		check_vk_result(result);
+	}
+
 	void Renderer::CreateSurface()
 	{
-    	// VkResult err = glfwCreateWindowSurface(vulkanInstance, handle, nullptr, &surface);
-		// check_vk_result(err);
+		SDL_bool result = SDL_Vulkan_CreateSurface(handle, vulkanInstance, &surface);
+		if(!result)
+			LOG_F(ERROR, "Failed to create surface: %s", SDL_GetError());
+
+		assert(result);
 	}
 
 	void Renderer::SelectPhysicalDevice()
@@ -354,13 +488,9 @@ namespace Otter::Systems
 
 	void Renderer::RecreateSwapChain()
 	{
+		//TODO high DPI support (SDL_WINDOW_ALLOW_HIGHDPI at window create)
 		int width = 0, height = 0;
-		// glfwGetFramebufferSize(handle, &width, &height);
-		// while (width == 0 || height == 0)
-		// {
-		// 	glfwGetFramebufferSize(handle, &width, &height);
-		// 	glfwWaitEvents();
-		// }
+		SDL_GetWindowSize(handle, &width, &height);
 
 		vkDeviceWaitIdle(logicalDevice);
 		DestroySwapChain();

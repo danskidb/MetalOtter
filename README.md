@@ -12,13 +12,11 @@ https://vulkan-tutorial.com/Texture_mapping/Images
 - dedicated server library
 
 ## Todo
-- Finish SDL2 migration: https://gist.github.com/YukiSnowy/dc31f47448ac61dd6aedee18b5d53858 
- * Application::GetRequiredExtensions / move vulkan instances to window it can grab required extensions
- * Event handling should also be handled with this partially
- * Window Resizing
- * Surface creation
 - iOS and Android compatibility
 - entity hierarchy
+- better sdl event handling (only send keyboard events etc to currently focussed window)
+- better handling for High DPI screens (SDL_WINDOW_ALLOW_HIGHDPI)
+- change all window size things to Vec2D
 
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/

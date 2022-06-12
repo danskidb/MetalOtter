@@ -2,6 +2,10 @@ MetalOtter
 ==========
 Learning to use vukan here.
 
+## Set up
+- With CMake, vscode and the cmake extension is easiest, just configure, build & run.
+- for ios, run the configure_ios.sh script. see https://github.com/leetal/ios-cmake for more info.
+
 ## Progress
 https://vulkan-tutorial.com/Texture_mapping/Images
 

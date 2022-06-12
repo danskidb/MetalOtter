@@ -25,3 +25,7 @@ endif()
 add_subdirectory(Libraries)
 add_subdirectory(Otter)
 add_subdirectory(Sandbox)
+
+if(PLATFORM MATCHES "OS64")
+	add_subdirectory(Sandbox_iOS)
+endif()

@@ -88,6 +88,7 @@ namespace Otter::Systems
 		virtual void OnStart();
 		virtual void OnStop();
 		virtual void OnTick(float deltaTime);
+		virtual void OnSDLEvent(SDL_Event* event);
 
 		inline void InvalidateFramebuffer() { framebufferResized = true; }
 		inline void SetImGuiAllowed() { imGuiAllowed = true; }

@@ -95,6 +95,7 @@ namespace Otter
 
 	void Window::OnSDLEvent(SDL_Event* event)
 	{
+		renderer->OnSDLEvent(event);
 	}
 
 	void Window::OnWindowEvent(SDL_WindowEvent* windowEvent)

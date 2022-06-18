@@ -137,6 +137,17 @@ namespace Otter::Systems
 		DrawFrame();
 	}
 
+	void Renderer::OnSDLEvent(SDL_Event* event)
+	{
+		if (!initialized)
+			return;
+
+		if (!imGuiAllowed)
+			return;
+
+		ImGui_ImplSDL2_ProcessEvent(event);
+	}
+
 	bool Renderer::CreateVulkanInstance()
 	{
 		//AppInfo

@@ -4,6 +4,8 @@
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
 #include "SDL_vulkan.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <glm/gtc/matrix_transform.hpp>
 
 namespace Otter::Systems
@@ -61,6 +63,7 @@ namespace Otter::Systems
 		CreateGraphicsPipeline();
 		CreateFrameBuffers();
 		CreateCommandPool();
+		CreateTextureImage();
 		CreateVertexBuffer();
 		CreateIndexBuffer();
 		CreateUniformBuffers();
@@ -89,6 +92,7 @@ namespace Otter::Systems
 
 		DestroySwapChain();
 
+		vmaDestroyImage(allocator, textureImage, textureImageMemory);
 		vmaDestroyBuffer(allocator, vertexBuffer, vertexBufferAllocation);
 		vmaDestroyBuffer(allocator, indexBuffer, indexBufferAllocation);
 		for(size_t i = 0; i < uniformBufferAllocations.size(); i++)
@@ -1120,6 +1124,168 @@ namespace Otter::Systems
 
 		VkResult result = vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data());
 		check_vk_result(result);
+	}
+
+	void Renderer::CreateTextureImage()
+	{
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels = stbi_load("Assets/Textures/floral_shoppe.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+		if (!pixels)
+		{
+			LOG_F(ERROR, "Failed to load texture image");
+			abort();
+		}
+
+		// Move data to staging buffer
+		VkBuffer stagingBuffer = VK_NULL_HANDLE;
+		VmaAllocation stagingBufferAllocation = VK_NULL_HANDLE;
+		VkBufferCreateInfo bufferInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
+		bufferInfo.size = imageSize;
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo allocCreateInfo = {};
+		allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		VmaAllocationInfo stagingAllocInfo = {};
+		VkResult result = vmaCreateBuffer(allocator, &bufferInfo, &allocCreateInfo, &stagingBuffer, &stagingBufferAllocation, &stagingAllocInfo);
+		check_vk_result(result);
+
+		memcpy(stagingAllocInfo.pMappedData, pixels, (size_t)bufferInfo.size);
+		stbi_image_free(pixels);
+
+		// Then, to a vulkan image
+		CreateImage(
+			{ texWidth, texHeight }, 
+			VK_FORMAT_R8G8B8A8_SRGB, 
+			VK_IMAGE_TILING_OPTIMAL, 
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			textureImage,
+			textureImageMemory
+		);
+
+		// Copy staging buffer to texture image
+		TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		CopyBufferToImage(stagingBuffer, textureImage, {texWidth, texHeight});
+
+		// Make the image accessible to shaders
+		TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		vmaDestroyBuffer(allocator, stagingBuffer, stagingBufferAllocation);
+	}
+
+	void Renderer::CreateImage(Vec2D size, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VmaAllocation& imageMemory)
+	{
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.width = static_cast<uint32_t>(size.x);
+		imageInfo.extent.height = static_cast<uint32_t>(size.y);
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+		imageInfo.tiling = tiling;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageInfo.usage = usage;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+
+		VmaAllocationCreateInfo imageAllocCreateInfo = {};
+		imageAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		VmaAllocationInfo imageAllocInfo = {};
+		VkResult result = vmaCreateImage(allocator, &imageInfo, &imageAllocCreateInfo, &image, &imageMemory, &imageAllocInfo);
+		check_vk_result(result);
+	}
+
+	void Renderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
+		VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.oldLayout = oldLayout;
+		barrier.newLayout = newLayout;
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = image;
+		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		barrier.subresourceRange.baseMipLevel = 0;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = 0;
+		barrier.subresourceRange.layerCount = 1;
+
+		// https://vulkan-tutorial.com/Texture_mapping/Images#page_Transition-barrier-masks
+		VkPipelineStageFlags sourceStage;
+		VkPipelineStageFlags destinationStage;
+		if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+		{
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} 
+		else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+		{
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		}
+		else
+		{
+			LOG_F(ERROR, "Unsupported layout transition!");
+			abort();
+		}
+
+		vkCmdPipelineBarrier(
+			commandBuffer,
+			sourceStage, destinationStage,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &barrier
+		);
+
+		EndSingleTimeCommands(commandBuffer);
+	}
+
+	void Renderer::CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2D size)
+	{
+    	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+
+		VkBufferImageCopy region{};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = 0;
+		region.imageSubresource.layerCount = 1;
+
+		region.imageOffset = {0, 0, 0};
+		region.imageExtent =
+		{
+			static_cast<uint32_t>(size.x),
+			static_cast<uint32_t>(size.y),
+			1
+		};	
+
+		vkCmdCopyBufferToImage(
+			commandBuffer,
+			buffer,
+			image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&region
+		);
+
+
+    	EndSingleTimeCommands(commandBuffer);
 	}
 
 	void Renderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)

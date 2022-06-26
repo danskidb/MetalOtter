@@ -5,9 +5,6 @@
 #include "SDL.h"
 #include "glslang/Include/glslang_c_interface.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 namespace Otter {
 
 	Application::Application()

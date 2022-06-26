@@ -145,6 +145,9 @@ namespace Otter::Systems
 		std::vector<VkBuffer> uniformBuffers;
 		std::vector<VmaAllocation> uniformBufferAllocations;
 
+		VkImage textureImage = VK_NULL_HANDLE;
+		VmaAllocation textureImageMemory = VK_NULL_HANDLE;
+
 		std::vector<VkSemaphore> imageAvailableSemaphores;
 		std::vector<VkSemaphore> renderFinishedSemaphores;
 		std::vector<VkFence> inFlightFences;
@@ -197,6 +200,11 @@ namespace Otter::Systems
 		void CreateCommandPool();
 		void CreateCommandBuffer();
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+		void CreateTextureImage();
+		void CreateImage(Vec2D size, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImage& image, VmaAllocation& imageMemory);
+ 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, Vec2D size);
 
 		void CreateSyncObjects();
 		void DrawFrame();

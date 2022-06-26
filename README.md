@@ -3,7 +3,7 @@ MetalOtter
 Learning to use vukan here.
 
 ## Progress
-https://vulkan-tutorial.com/Texture_mapping/Images
+https://vulkan-tutorial.com/Depth_buffering
 
 ## Goals
 - render texture in both windows separately, one with ImGui

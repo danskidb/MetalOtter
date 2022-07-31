@@ -9,7 +9,7 @@
 [submodule "Libraries/imgui"]
 	path = Libraries/imgui
 	url = https://github.com/ocornut/imgui.git
-	branch = master
+	branch = docking
 [submodule "Libraries/glslang"]
 	path = Libraries/glslang
 	url = https://github.com/KhronosGroup/glslang.git

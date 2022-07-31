@@ -23,3 +23,8 @@
 [submodule "Libraries/SDL"]
 	path = Libraries/SDL
 	url = https://github.com/libsdl-org/SDL
+	branch = main
+[submodule "Libraries/assimp"]
+	path = Libraries/assimp
+	url = https://github.com/assimp/assimp.git
+	branch = master

@@ -21,5 +21,4 @@ https://vulkan-tutorial.com/Depth_buffering
 ## Some other resources
 - https://snorristurluson.github.io/TextureAtlas/
 - https://snorristurluson.github.io/TextRenderingWithFreetype/
-- https://github.com/assimp/assimp
 - https://github.com/SaschaWillems/Vulkan

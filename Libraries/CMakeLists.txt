@@ -1,3 +1,4 @@
+add_subdirectory(assimp)
 add_subdirectory(SDL)
 add_subdirectory(glm)
 set(ENABLE_SPVREMAPPER OFF)

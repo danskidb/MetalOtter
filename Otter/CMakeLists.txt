@@ -32,4 +32,5 @@ target_link_libraries(Otter
 	PUBLIC glslang
 	PUBLIC SPIRV
 	PUBLIC VulkanMemoryAllocator
+	PUBLIC assimp
 )

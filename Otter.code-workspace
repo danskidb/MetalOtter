@@ -95,7 +95,9 @@
 			"filesystem": "cpp",
 			"codecvt": "cpp",
 			"any": "cpp",
-			"span": "cpp"
+			"span": "cpp",
+			"cinttypes": "cpp",
+			"forward_list": "cpp"
 		},
 		"lldb.displayFormat": "auto",
 		"lldb.showDisassembly": "auto",

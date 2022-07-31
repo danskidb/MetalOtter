@@ -8,17 +8,20 @@
 
 namespace Otter
 {
+	class Coordinator;
+
 	class SystemManager
 	{
 	public:
 		template<typename T>
-		std::shared_ptr<T> RegisterSystem()
+		std::shared_ptr<T> RegisterSystem(Coordinator* coordinator)
 		{
 			const char* typeName = typeid(T).name();
 
 			assert(mSystems.find(typeName) == mSystems.end() && "Registering system more than once.");
 
 			auto system = std::make_shared<T>();
+			system->coordinator = coordinator;
 			mSystems.insert({typeName, system});
 			return system;
 		}
@@ -40,7 +43,7 @@ namespace Otter
 				auto const& system = pair.second;
 
 
-				system->mEntities.erase(entity);
+				system->entities.erase(entity);
 			}
 		}
 
@@ -54,11 +57,11 @@ namespace Otter
 
 				if ((entitySignature & systemSignature) == systemSignature)
 				{
-					system->mEntities.insert(entity);
+					system->entities.insert(entity);
 				}
 				else
 				{
-					system->mEntities.erase(entity);
+					system->entities.erase(entity);
 				}
 			}
 		}

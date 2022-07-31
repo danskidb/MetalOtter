@@ -41,6 +41,7 @@ namespace Otter
 		if (!window->IsValid())
 			return false;
 
+		window->OnStart();
 		windows.push_back(window);
 		return true;
 	}

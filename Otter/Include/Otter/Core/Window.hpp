@@ -13,6 +13,8 @@ namespace Otter
 		Window(glm::vec2 size, std::string title, bool imGuiAllowed);
 		virtual ~Window();
 
+		virtual void OnStart();
+
 		inline bool IsValid() { return handle != nullptr && initialized; }
 		inline uint32_t GetWindowId() { return windowId; }
 		bool ShouldBeDestroyed();
@@ -23,12 +25,14 @@ namespace Otter
 		virtual void OnDrawImGui() {}
 		virtual void OnWindowResized(glm::vec2 size);
 
+	protected:
+		Coordinator coordinator;
+
 	private:
 		bool initialized = false;
 		bool shouldBeDestroyed = false;
 		std::string title;
 
-		Coordinator coordinator;
 		std::vector<std::shared_ptr<Otter::System>> systems;
 		std::shared_ptr<Systems::Renderer> renderer;
 

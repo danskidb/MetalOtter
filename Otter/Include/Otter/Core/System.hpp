@@ -4,10 +4,13 @@
 
 namespace Otter
 {
+	class Coordinator;
+
 	class System
 	{
 	public:
-		std::set<Entity> mEntities;
+		std::set<Entity> entities;
+		Coordinator* coordinator;
 
 		virtual void OnStart() = 0;
 		virtual void OnStop() = 0;

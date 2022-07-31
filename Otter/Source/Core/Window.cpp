@@ -39,7 +39,7 @@ namespace Otter
 		renderer = coordinator.RegisterSystem<Systems::Renderer>();
 		{
 			Signature signature;
-			signature.set(coordinator.GetComponentType<Components::Transform>());
+			signature.set(coordinator.GetComponentType<Components::MeshRenderer>());
 			coordinator.SetSystemSignature<Systems::Renderer>(signature);
 		}
 		renderer->SetWindowHandle(handle);
@@ -53,7 +53,6 @@ namespace Otter
 				OnDrawImGui();
 			});
 		}
-		renderer->OnStart();
 		systems.push_back(renderer);
 
 		// Done. Let's go!
@@ -74,6 +73,11 @@ namespace Otter
 		SDL_DestroyWindow(handle);
 
 		LOG_F(INFO, "Closed window %s", title.c_str());
+	}
+
+	void Window::OnStart()
+	{
+		renderer->OnStart();
 	}
 
 	bool Window::ShouldBeDestroyed()

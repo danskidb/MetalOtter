@@ -1,5 +1,7 @@
 #include "Otter/Systems/Renderer.hpp"
 #include "Otter/Utilities/ShaderUtilities.hpp"
+#include "Otter/Core/Coordinator.hpp"
+#include "Otter/Components/MeshRenderer.hpp"
 #include "loguru.hpp"
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
@@ -7,6 +9,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <assimp/Importer.hpp>      // C++ importer interface
+#include <assimp/scene.h>           // Output data structure
+#include <assimp/postprocess.h>     // Post processing flags
 
 namespace Otter::Systems
 {
@@ -66,6 +71,7 @@ namespace Otter::Systems
 		CreateFrameBuffers();
 		CreateTextureImage();
 		CreateTextureSampler();
+		LoadMeshes();
 		CreateVertexBuffer();
 		CreateIndexBuffer();
 		CreateUniformBuffers();
@@ -653,6 +659,38 @@ namespace Otter::Systems
 		swapChainImageViews.resize(swapChainImages.size());
 		for (size_t i = 0; i < swapChainImages.size(); i++)
 			swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+	}
+
+	void Renderer::LoadMeshes()
+	{
+		//vertices = std::vector<Vertex>();
+		//indices = std::vector<uint32_t>();
+
+		for (auto entity : entities) 
+		{
+			auto meshRenderer = coordinator->GetComponent<Components::MeshRenderer>(entity);
+
+			Assimp::Importer importer;
+			// And have it read the given file with some example postprocessing
+			// Usually - if speed is not the most important aspect for you - you'll
+			// probably to request more postprocessing than we do in this example.
+			const aiScene* scene = importer.ReadFile(meshRenderer.meshPath,
+				aiProcess_CalcTangentSpace       |
+				aiProcess_Triangulate            |
+				aiProcess_JoinIdenticalVertices  |
+				aiProcess_SortByPType
+			);
+
+			// If the import failed, report it
+			if (scene == nullptr)
+			{
+				LOG_F(ERROR, "%s", importer.GetErrorString());
+				abort();
+			}
+
+			//todo add to vertices and build indices queue
+			int i = 0;
+		}
 	}
 
 	void Renderer::CreateRenderPass()

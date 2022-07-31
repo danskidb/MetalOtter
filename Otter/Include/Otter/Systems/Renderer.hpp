@@ -157,6 +157,8 @@ namespace Otter::Systems
 		VkCommandPool commandPool = VK_NULL_HANDLE;
 		std::vector<VkCommandBuffer> commandBuffers;
 
+		//std::vector<Vertex> vertices;
+		//std::vector<uint32_t> indices;
 		VmaAllocator allocator = VK_NULL_HANDLE;
 		VkBuffer vertexBuffer = VK_NULL_HANDLE;
 		VmaAllocation vertexBufferAllocation = VK_NULL_HANDLE;
@@ -208,6 +210,8 @@ namespace Otter::Systems
 		VkExtent2D SelectSwapChainExtent(const VkSurfaceCapabilitiesKHR& capabilities); // Return the canvas size in actual pixels, not in screen coordinates.
 		VkImageView CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 		void CreateImageViews();
+
+		void LoadMeshes();
 
 		void CreateRenderPass();
 		void CreateDescriptorSetLayout();

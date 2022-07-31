@@ -1,5 +1,6 @@
 #pragma once
 #include "Otter/Components/Transform.hpp"
+#include "Otter/Components/MeshRenderer.hpp"
 
 namespace Otter
 {
@@ -10,6 +11,7 @@ namespace Otter
 		static inline void RegisterComponentsWithCoordinator(Coordinator* coordinator)
 		{
 			coordinator->RegisterComponent<Components::Transform>();
+			coordinator->RegisterComponent<Components::MeshRenderer>();
 		}
 	};
 }

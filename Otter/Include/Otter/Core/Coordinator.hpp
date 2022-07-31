@@ -84,7 +84,7 @@ namespace Otter
 		template<typename T>
 		std::shared_ptr<T> RegisterSystem()
 		{
-			return mSystemManager->RegisterSystem<T>();
+			return mSystemManager->RegisterSystem<T>(this);
 		}
 
 		template<typename T>
